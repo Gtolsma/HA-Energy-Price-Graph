@@ -55,6 +55,7 @@ async def test_setup_registers_module(
     assert options["views"] == ["electricity", "overview"]
     assert options["show_export"] is True
     assert options["show_current"] is True
+    assert options["show_average"] is True
 
     # Only one instance allowed.
     result = await hass.config_entries.flow.async_init(
@@ -85,6 +86,7 @@ async def test_options_flow_updates_options(
             "period": "5minute",
             "line_style": "smooth",
             "show_current": True,
+            "show_average": True,
             "views": [],
             "show_export": False,
             "minmax": True,
@@ -99,6 +101,7 @@ async def test_options_flow_updates_options(
             "period": "5minute",
             "line_style": "stepped",
             "show_current": False,
+            "show_average": False,
             "views": ["electricity"],
             "show_export": False,
             "minmax": True,
@@ -116,6 +119,7 @@ async def test_options_flow_updates_options(
     assert options["period"] == "5minute"
     assert options["line_style"] == "stepped"
     assert options["show_current"] is False
+    assert options["show_average"] is False
     assert options["views"] == ["electricity"]
     assert options["show_export"] is False
     assert options["minmax"] is True

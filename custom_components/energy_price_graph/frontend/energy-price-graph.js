@@ -35,6 +35,7 @@ const OPT = {
     ? params.get("line")
     : "straight",
   current: params.get("current") !== "0",
+  average: params.get("average") !== "0",
 };
 
 // Marker key on our card config. The statistics-graph card ignores unknown
@@ -66,6 +67,7 @@ async function loadOptions(hass) {
   OPT.minmax = !!o.minmax;
   OPT.line = LINE_STYLES.includes(o.line_style) ? o.line_style : "straight";
   OPT.current = o.show_current !== false;
+  OPT.average = o.show_average !== false;
   OPT.title = o.title || null;
   OPT.entity = o.import_entity || null;
   OPT.exportEntity = o.export_entity || null;
@@ -111,9 +113,24 @@ function themeColor(varName, fallback) {
 }
 
 const LABELS = {
-  en: { title: "Electricity price", imp: "Import", exp: "Export", now: "Current price" },
-  nl: { title: "Stroomprijs", imp: "Inkoop", exp: "Teruglevering", now: "Huidige prijs" },
-  de: { title: "Strompreis", imp: "Bezug", exp: "Einspeisung", now: "Aktueller Preis" },
+  en: {
+    title: "Electricity price", imp: "Import", exp: "Export", now: "Current price",
+    avgTitle: "Average price", you: "You", market: "Market",
+    youHelp: "What you actually paid or received per kWh in the selected period (cost ÷ energy)",
+    marketHelp: "Average market price in the selected period",
+  },
+  nl: {
+    title: "Stroomprijs", imp: "Inkoop", exp: "Teruglevering", now: "Huidige prijs",
+    avgTitle: "Gemiddelde prijs", you: "Jij", market: "Markt",
+    youHelp: "Wat je in de gekozen periode echt betaalde of ontving per kWh (kosten ÷ energie)",
+    marketHelp: "Gemiddelde marktprijs in de gekozen periode",
+  },
+  de: {
+    title: "Strompreis", imp: "Bezug", exp: "Einspeisung", now: "Aktueller Preis",
+    avgTitle: "Durchschnittspreis", you: "Du", market: "Markt",
+    youHelp: "Was du im gewählten Zeitraum pro kWh tatsächlich bezahlt oder erhalten hast (Kosten ÷ Energie)",
+    marketHelp: "Durchschnittlicher Marktpreis im gewählten Zeitraum",
+  },
 };
 
 function labels(hass) {
@@ -124,7 +141,61 @@ function labels(hass) {
     imp: OPT.importName || l.imp,
     exp: OPT.exportName || l.exp,
     now: l.now,
+    avgTitle: l.avgTitle,
+    you: l.you,
+    market: l.market,
+    youHelp: l.youHelp,
+    marketHelp: l.marketHelp,
   };
+}
+
+const AVG_CARD = "energy-price-average-card";
+
+function averageCard({ imp, exp }, collectionKey, L) {
+  return {
+    type: `custom:${AVG_CARD}`,
+    title: L.avgTitle,
+    collection_key: collectionKey,
+    import_entity: imp || null,
+    export_entity: exp && exp !== imp ? exp : null,
+    labels: L,
+    colors: {
+      import: themeColor("--energy-grid-consumption-color", "#488fc2"),
+      export: themeColor("--energy-grid-return-color", "#8353d1"),
+    },
+  };
+}
+
+/**
+ * Electricity tab: average price card directly below Energy distribution,
+ * in the sidebar on large screens and in the main column on small screens.
+ */
+function injectAverage(view, card) {
+  // Older frontends: flat card list with a sidebar position.
+  if (Array.isArray(view.cards)) {
+    const idx = view.cards.findIndex((c) => c.type === "energy-distribution");
+    view.cards.splice(idx + 1, 0, { ...card, view_layout: { position: "sidebar" } });
+    return;
+  }
+  const sidebarCards = view.sidebar?.sections?.[0]?.cards;
+  if (Array.isArray(sidebarCards)) {
+    const idx = sidebarCards.findIndex((c) => c.type === "energy-distribution");
+    sidebarCards.splice(idx + 1, 0, card);
+    // Small screens: the sidebar is hidden and the strategy repeats its cards
+    // as single-column sections; do the same right after Energy distribution.
+    const sections = view.sections || [];
+    const sIdx = sections.findIndex(
+      (s) => s.visibility && (s.cards || []).some((c) => c.type === "energy-distribution")
+    );
+    const visibility = sIdx !== -1
+      ? sections[sIdx].visibility
+      : [{ condition: "view_columns", max: 1 }];
+    sections.splice(sIdx + 1, 0, { type: "grid", column_span: 1, visibility, cards: [card] });
+    return;
+  }
+  // No sidebar: top of the first section.
+  const first = (view.sections || [])[0];
+  if (first) first.cards = [card, ...(first.cards || [])];
 }
 
 function priceCard({ imp, exp }, collectionKey, L) {
@@ -236,7 +307,11 @@ function patchStrategy(tag, ctor) {
         return view;
       }
       const key = config?.collection_key || "energy_dashboard";
-      target.inject(view, priceCard(found, key, labels(hass)));
+      const L = labels(hass);
+      target.inject(view, priceCard(found, key, L));
+      if (target.key === "electricity" && OPT.average) {
+        injectAverage(view, averageCard(found, key, L));
+      }
     } catch (e) {
       console.error(TAG, "injection failed, dashboard left unchanged", e);
     }
@@ -275,6 +350,7 @@ function installRegistryHooks() {
   } catch (e) {
     console.warn(TAG, "could not hook custom element registry", e);
   }
+  defineAverageCard(reg, get);
   for (const tag of Object.keys(TARGETS)) {
     const existing = get.call(reg, tag);
     if (existing) patchStrategy(tag, existing);
@@ -363,10 +439,6 @@ function patchChartBase(cls) {
   proto[MARK] = true;
 }
 
-installRegistryHooks();
-// Keep checking for a replaced registry for a while after start-up.
-const hookTimer = setInterval(installRegistryHooks, 100);
-setTimeout(() => clearInterval(hookTimer), 120000);
 
 /* ------------------------------------------------------------------------ *
  * Current price chips
@@ -468,3 +540,277 @@ function patchStatisticsCard(cls) {
   };
   proto[MARK] = true;
 }
+
+/* ------------------------------------------------------------------------ *
+ * Average price card
+ *
+ * For the period selected in the Energy dashboard:
+ *  - "You": what you actually paid / received per kWh = cost ÷ energy, from
+ *    the same statistics the Energy dashboard uses (weighted by when you
+ *    used or exported energy);
+ *  - "Market": the plain average of the price sensor over the period.
+ * ------------------------------------------------------------------------ */
+
+function currencySymbol(hass) {
+  const code = hass?.config?.currency;
+  if (!code) return "";
+  try {
+    const lang = hass?.locale?.language || hass?.language || "en";
+    return (
+      new Intl.NumberFormat(lang, { style: "currency", currency: code, currencyDisplay: "narrowSymbol" })
+        .formatToParts(0)
+        .find((p) => p.type === "currency")?.value || code
+    );
+  } catch (e) {
+    return code;
+  }
+}
+
+function sumChange(stats) {
+  if (!Array.isArray(stats)) return null;
+  let total = 0;
+  let any = false;
+  for (const s of stats) {
+    if (typeof s?.change === "number") {
+      total += s.change;
+      any = true;
+    }
+  }
+  return any ? total : null;
+}
+
+/** Grid import/export energy and cost statistic ids from the energy prefs. */
+function gridStatIds(prefs, info) {
+  const out = { from: [], to: [] };
+  const cost = info?.cost_sensors || {};
+  for (const src of prefs?.energy_sources || []) {
+    if (src.type !== "grid") continue;
+    // current schema
+    if (src.stat_energy_from) {
+      out.from.push({ energy: src.stat_energy_from, cost: src.stat_cost || cost[src.stat_energy_from] });
+    }
+    if (src.stat_energy_to) {
+      out.to.push({ energy: src.stat_energy_to, cost: src.stat_compensation || cost[src.stat_energy_to] });
+    }
+    // older schema
+    for (const f of src.flow_from || []) {
+      out.from.push({ energy: f.stat_energy_from, cost: f.stat_cost || cost[f.stat_energy_from] });
+    }
+    for (const f of src.flow_to || []) {
+      out.to.push({ energy: f.stat_energy_to, cost: f.stat_compensation || cost[f.stat_energy_to] });
+    }
+  }
+  return out;
+}
+
+function paidAverage(data, flows) {
+  let energy = 0;
+  let money = 0;
+  let ok = false;
+  for (const f of flows) {
+    if (!f.cost) continue;
+    const e = sumChange(data?.stats?.[f.energy]);
+    const c = sumChange(data?.stats?.[f.cost]);
+    if (e == null || c == null) continue;
+    energy += Math.abs(e);
+    money += Math.abs(c);
+    ok = true;
+  }
+  return ok && energy > 0 ? money / energy : null;
+}
+
+function marketPeriod(start, end) {
+  const days = ((end || new Date()) - start) / 86400000;
+  if (days <= 35) return "hour";
+  if (days <= 400) return "day";
+  return "month";
+}
+
+async function marketAverages(hass, start, end, ids) {
+  const wanted = ids.filter(Boolean);
+  if (!wanted.length) return {};
+  const res = await hass.callWS({
+    type: "recorder/statistics_during_period",
+    start_time: start.toISOString(),
+    ...(end && { end_time: end.toISOString() }),
+    statistic_ids: wanted,
+    period: marketPeriod(start, end),
+    types: ["mean"],
+  });
+  const out = {};
+  for (const id of wanted) {
+    const vals = (res?.[id] || []).map((s) => s.mean).filter((v) => typeof v === "number");
+    out[id] = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+  }
+  return out;
+}
+
+class EnergyPriceAverageCard extends HTMLElement {
+  setConfig(config) {
+    this._config = config;
+    this._result = null;
+    if (!this.shadowRoot) this.attachShadow({ mode: "open" });
+    this._render();
+  }
+
+  set hass(hass) {
+    this._hass = hass;
+    if (this.isConnected) this._subscribe();
+  }
+
+  get hass() {
+    return this._hass;
+  }
+
+  connectedCallback() {
+    this._subscribe();
+  }
+
+  disconnectedCallback() {
+    this._unsub?.();
+    this._unsub = undefined;
+    clearTimeout(this._retry);
+  }
+
+  getCardSize() {
+    return 3;
+  }
+
+  getGridOptions() {
+    return { columns: 12, min_columns: 6, rows: "auto" };
+  }
+
+  _subscribe() {
+    if (this._unsub || !this._hass || !this._config) return;
+    const key = `_${this._config.collection_key || "energy_dashboard"}`;
+    const collection = this._hass.connection?.[key];
+    if (!collection?.subscribe) {
+      // The Energy dashboard creates the collection; wait until it exists.
+      clearTimeout(this._retry);
+      this._retry = setTimeout(() => this._subscribe(), 500);
+      return;
+    }
+    this._unsub = collection.subscribe((data) => this._update(data));
+  }
+
+  async _update(data) {
+    const run = (this._run = (this._run || 0) + 1);
+    const c = this._config;
+    const flows = gridStatIds(data?.prefs, data?.info);
+    const result = {
+      importPaid: paidAverage(data, flows.from),
+      exportPaid: flows.to.length ? paidAverage(data, flows.to) : null,
+      hasExport: !!c.export_entity || flows.to.length > 0,
+      importMarket: null,
+      exportMarket: null,
+    };
+    try {
+      const market = await marketAverages(this._hass, data.start, data.end, [
+        c.import_entity,
+        c.export_entity,
+      ]);
+      result.importMarket = market[c.import_entity] ?? null;
+      result.exportMarket = market[c.export_entity] ?? null;
+    } catch (e) {
+      console.warn(TAG, "could not load market average", e);
+    }
+    if (run !== this._run) return; // a newer period was selected meanwhile
+    this._result = result;
+    this._render();
+  }
+
+  _fmt(value) {
+    if (value == null || !Number.isFinite(value)) return "—";
+    const lang = this._hass?.locale?.language || this._hass?.language || "en";
+    const num = new Intl.NumberFormat(lang, {
+      minimumFractionDigits: 3,
+      maximumFractionDigits: 3,
+    }).format(value);
+    return `${num} ${currencySymbol(this._hass)}/kWh`.trim();
+  }
+
+  _diff(you, market, higherIsBetter) {
+    if (you == null || market == null || !market) return "";
+    const pct = ((you - market) / Math.abs(market)) * 100;
+    const good = higherIsBetter ? pct >= 0 : pct <= 0;
+    const lang = this._hass?.locale?.language || this._hass?.language || "en";
+    const txt = new Intl.NumberFormat(lang, {
+      maximumFractionDigits: 1,
+      signDisplay: "exceptZero",
+    }).format(pct);
+    return `<span class="diff ${good ? "good" : "bad"}">${txt}%</span>`;
+  }
+
+  _row(color, name, you, market, higherIsBetter) {
+    return `
+      <div class="row">
+        <div class="name"><span class="dot" style="background:${color}"></span>${name}</div>
+        <div class="you">${this._fmt(you)}${this._diff(you, market, higherIsBetter)}</div>
+        <div class="market">${this._fmt(market)}</div>
+      </div>`;
+  }
+
+  _render() {
+    if (!this.shadowRoot || !this._config) return;
+    const c = this._config;
+    const L = c.labels || {};
+    const r = this._result;
+    const esc = (t) => String(t ?? "").replace(/[&<>"]/g, (ch) => `&#${ch.charCodeAt(0)};`);
+    const body = !r
+      ? `<div class="loading">…</div>`
+      : `
+        <div class="row head">
+          <div></div>
+          <div class="you" title="${esc(L.youHelp)}">${esc(L.you)}</div>
+          <div class="market" title="${esc(L.marketHelp)}">${esc(L.market)}</div>
+        </div>
+        ${this._row(c.colors?.import, esc(L.imp), r.importPaid, r.importMarket, false)}
+        ${r.hasExport ? this._row(c.colors?.export, esc(L.exp), r.exportPaid, r.exportMarket, true) : ""}`;
+    this.shadowRoot.innerHTML = `
+      <style>
+        ha-card { height: 100%; }
+        .card-header { padding: 16px 16px 0; font-size: var(--ha-card-header-font-size, 24px);
+          font-weight: var(--ha-font-weight-normal, 400); line-height: 32px;
+          color: var(--ha-card-header-color, var(--primary-text-color)); }
+        .content { padding: 12px 16px 16px; }
+        .row { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr);
+          gap: 8px; align-items: baseline; padding: 6px 0; }
+        .row + .row { border-top: 1px solid var(--divider-color); }
+        .head { font-size: var(--ha-font-size-s, 12px); color: var(--secondary-text-color); padding-top: 0; }
+        .head > div { cursor: help; }
+        .name { display: flex; align-items: center; gap: 8px; min-width: 0; }
+        .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+        .you { font-weight: var(--ha-font-weight-medium, 500); text-align: end; }
+        .market { color: var(--secondary-text-color); text-align: end; }
+        .diff { display: block; font-size: var(--ha-font-size-s, 12px); font-weight: 400; }
+        .good { color: var(--success-color, #43a047); }
+        .bad { color: var(--error-color, #db4437); }
+        .loading { color: var(--secondary-text-color); }
+      </style>
+      <ha-card>
+        ${c.title ? `<div class="card-header">${esc(c.title)}</div>` : ""}
+        <div class="content">${body}</div>
+      </ha-card>`;
+  }
+}
+
+/**
+ * Define the card on a registry. The frontend may swap window.customElements
+ * for a scoped-registry polyfill after this module ran, so this is called for
+ * every registry we hook; each gets its own subclass because a constructor
+ * can only be registered once.
+ */
+function defineAverageCard(reg, get) {
+  try {
+    if (get.call(reg, AVG_CARD)) return;
+    reg.define(AVG_CARD, class extends EnergyPriceAverageCard {});
+  } catch (e) {
+    console.warn(TAG, "could not define the average price card", e);
+  }
+}
+
+/* Start: hook the registry now and whenever the frontend replaces it. */
+installRegistryHooks();
+// Keep checking for a replaced registry for a while after start-up.
+const hookTimer = setInterval(installRegistryHooks, 100);
+setTimeout(() => clearInterval(hookTimer), 120000);

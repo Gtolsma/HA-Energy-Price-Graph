@@ -30,6 +30,7 @@ from .const import (
     CONF_LINE_STYLE,
     CONF_MINMAX,
     CONF_PERIOD,
+    CONF_SHOW_AVERAGE,
     CONF_SHOW_CURRENT,
     CONF_SHOW_EXPORT,
     CONF_TITLE,
@@ -67,6 +68,7 @@ OPTIONS_SCHEMA = vol.Schema(
         ),
         vol.Required(CONF_SHOW_EXPORT): BooleanSelector(),
         vol.Required(CONF_SHOW_CURRENT): BooleanSelector(),
+        vol.Required(CONF_SHOW_AVERAGE): BooleanSelector(),
         vol.Required(CONF_MINMAX): BooleanSelector(),
         vol.Optional(CONF_TITLE): TextSelector(),
         vol.Optional(CONF_IMPORT_ENTITY): EntitySelector(

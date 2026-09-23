@@ -4,6 +4,7 @@ Show your **dynamic electricity price** directly in the **built-in Energy dashbo
 
 - Import price and (optionally) export / feed-in price as two lines in one graph
 - Current import and export price as chips in the card header
+- Average price card on the Electricity tab: what you actually paid / received per kWh next to the average market price
 - Follows the Energy dashboard date picker (today, yesterday, last week, …)
 - Uses the price sensors you already configured in the Energy settings, so no extra setup is needed
 - Colours match the grid import / export colours of the Energy dashboard
@@ -46,6 +47,7 @@ Go to **Settings → Devices & services → Energy Price Graph → Configure**.
 | Show on tabs | Electricity, Summary | Energy dashboard tabs where the graph is added. The Summary tab only exists when you track more than one energy type or have a grid power sensor. |
 | Show export price | On | Adds a second line when the export price is a different sensor than the import price. |
 | Show current price | On | Small chips in the card header with the current import and export price. |
+| Show average price | On | Card below *Energy distribution* on the Electricity tab. **You**: what you actually paid (import) or received (export) per kWh in the selected period, calculated as cost ÷ energy from the Energy dashboard statistics. **Market**: the plain average of the price sensor over the same period. The percentage shows how you did compared to the market (green is better). |
 | Show min/max per period | Off | Also draws the lowest and highest price within each period. |
 | Card title | Electricity price | Leave empty for the default (translated for English, Dutch and German). |
 | Import / export price sensor | from Energy settings | Override the sensors used for the graph only. |
