@@ -6,7 +6,7 @@ Show your **dynamic electricity price** directly in the **built-in Energy dashbo
 - Follows the Energy dashboard date picker (today, yesterday, last week, …)
 - Uses the price sensors you already configured in the Energy settings, so no extra setup is needed
 - Colours match the grid import / export colours of the Energy dashboard
-- Configurable from the UI: resolution, tabs, min/max, title, sensor overrides
+- Configurable from the UI: resolution, line style, tabs, min/max, title, sensor overrides
 
 > Home Assistant has no official way to add cards to the built-in Energy dashboard. This integration fills that gap until the feature exists in Home Assistant itself.
 
@@ -41,6 +41,7 @@ Go to **Settings → Devices & services → Energy Price Graph → Configure**.
 | Option | Default | Description |
 |---|---|---|
 | Resolution | Auto | `Auto` follows the selected date range. `5 minutes` shows every price step (quarter-hour prices), but short-term data is only kept as long as your recorder keeps history (`purge_keep_days`, default 10 days). |
+| Line style | Stepped | `Stepped` shows the exact price per period (a price holds for the whole quarter or hour). `Straight` connects the points directly. `Smooth` draws a rounded curve like the standard statistics graph. |
 | Show on tabs | Electricity, Summary | Energy dashboard tabs where the graph is added. The Summary tab only exists when you track more than one energy type or have a grid power sensor. |
 | Show export price | On | Adds a second line when the export price is a different sensor than the import price. |
 | Show min/max per period | Off | Also draws the lowest and highest price within each period. |
@@ -89,7 +90,7 @@ To release a new version:
 2. Bump `version` in `custom_components/energy_price_graph/manifest.json` (for example `1.0.0` → `1.1.0`).
 3. In `CHANGELOG.md`, rename `[Unreleased]` to the new version and date, and add a new empty `[Unreleased]` section.
 4. Commit and push: `git commit -am "Release 1.1.0" && git push`
-5. On GitHub, go to **Releases → Draft a new release**, create tag `v1.1.0` and publish it.
+5. On GitHub, go to **Releases → Draft a new release**, create tag `1.1.0` and publish it.
 
 The release workflow checks that the tag, `manifest.json` and `CHANGELOG.md` agree, then builds `energy_price_graph.zip` and attaches it to the release.
 

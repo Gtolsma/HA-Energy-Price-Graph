@@ -27,6 +27,7 @@ from .const import (
     CONF_EXPORT_NAME,
     CONF_IMPORT_ENTITY,
     CONF_IMPORT_NAME,
+    CONF_LINE_STYLE,
     CONF_MINMAX,
     CONF_PERIOD,
     CONF_SHOW_EXPORT,
@@ -34,6 +35,7 @@ from .const import (
     CONF_VIEWS,
     DEFAULT_OPTIONS,
     DOMAIN,
+    LINE_STYLES,
     PERIODS,
     VIEWS,
 )
@@ -44,6 +46,13 @@ OPTIONS_SCHEMA = vol.Schema(
             SelectSelectorConfig(
                 options=PERIODS,
                 translation_key=CONF_PERIOD,
+                mode=SelectSelectorMode.DROPDOWN,
+            )
+        ),
+        vol.Required(CONF_LINE_STYLE): SelectSelector(
+            SelectSelectorConfig(
+                options=LINE_STYLES,
+                translation_key=CONF_LINE_STYLE,
                 mode=SelectSelectorMode.DROPDOWN,
             )
         ),

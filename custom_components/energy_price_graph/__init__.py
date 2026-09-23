@@ -22,6 +22,7 @@ from .const import (
     CONF_EXPORT_NAME,
     CONF_IMPORT_ENTITY,
     CONF_IMPORT_NAME,
+    CONF_LINE_STYLE,
     CONF_MINMAX,
     CONF_PERIOD,
     CONF_SHOW_EXPORT,
@@ -46,6 +47,7 @@ def build_module_url(version: str, options: dict) -> str:
         "views": ",".join(opts[CONF_VIEWS]),
         "export": "1" if opts[CONF_SHOW_EXPORT] else "0",
         "minmax": "1" if opts[CONF_MINMAX] else "0",
+        "line": opts[CONF_LINE_STYLE],
     }
     for key, param in (
         (CONF_TITLE, "title"),

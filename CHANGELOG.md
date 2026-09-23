@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-09-23
+
+### Added
+
+- Line style option: *Stepped* (exact price per period, new default), *Straight* or *Smooth*.
+
+### Fixed
+
+- The graph could be missing when the frontend replaces the custom element registry at start-up; the strategies are now hooked more reliably.
+- Support for older Home Assistant versions whose Energy views use a flat card layout instead of sections.
+- Resolution *Auto* no longer breaks the graph on frontends that do not know the `auto` period.
+
 ## [1.0.0] - 2026-09-23
 
 ### Added
@@ -17,5 +29,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - English, Dutch and German default labels; English and Dutch UI translations.
 - Integration icon (`brand/`), shown in Home Assistant 2026.3 and newer.
 
-[Unreleased]: https://github.com/Gtolsma/HA-Energy-Price-Graph/compare/1.0.0...HEAD
+[Unreleased]: https://github.com/Gtolsma/HA-Energy-Price-Graph/compare/1.1.0...HEAD
+[1.1.0]: https://github.com/Gtolsma/HA-Energy-Price-Graph/compare/1.0.0...1.1.0
 [1.0.0]: https://github.com/Gtolsma/HA-Energy-Price-Graph/releases/tag/1.0.0

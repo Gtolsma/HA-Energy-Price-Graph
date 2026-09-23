@@ -35,6 +35,7 @@ async def test_setup_registers_module(hass: HomeAssistant, hass_client) -> None:
     assert q["period"] == ["auto"]
     assert q["views"] == ["electricity,overview"]
     assert q["export"] == ["1"]
+    assert q["line"] == ["stepped"]
 
     client = await hass_client()
     resp = await client.get(urls[0])
@@ -64,7 +65,13 @@ async def test_options_flow_updates_url(hass: HomeAssistant) -> None:
     # No tabs selected -> error.
     result = await hass.config_entries.options.async_configure(
         result["flow_id"],
-        {"period": "5minute", "views": [], "show_export": False, "minmax": True},
+        {
+            "period": "5minute",
+            "line_style": "smooth",
+            "views": [],
+            "show_export": False,
+            "minmax": True,
+        },
     )
     assert result["type"] is FlowResultType.FORM
     assert result["errors"] == {"views": "no_views"}
@@ -73,6 +80,7 @@ async def test_options_flow_updates_url(hass: HomeAssistant) -> None:
         result["flow_id"],
         {
             "period": "5minute",
+            "line_style": "straight",
             "views": ["electricity"],
             "show_export": False,
             "minmax": True,
@@ -91,4 +99,5 @@ async def test_options_flow_updates_url(hass: HomeAssistant) -> None:
     assert q["export"] == ["0"]
     assert q["minmax"] == ["1"]
     assert q["title"] == ["Prijs"]
+    assert q["line"] == ["straight"]
     assert q["entity"] == ["sensor.price"]
