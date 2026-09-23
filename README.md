@@ -48,7 +48,7 @@ On the Electricity tab, below *Energy distribution*, a card compares what you ac
 
 ## Options
 
-Go to **Settings → Devices & services → Energy Price Graph → Configure**.
+Go to **Settings → Devices & services → Energy Price Graph → Configure**. The options are grouped in *Price graph*, *Current price*, *Average price*, *Gas*, *Forecast* and *Advanced*.
 
 | Option | Default | Description |
 |---|---|---|

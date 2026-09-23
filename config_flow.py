@@ -48,7 +48,11 @@ from .const import (
     LINE_STYLES,
     PERIODS,
     SECTION_ADVANCED,
+    SECTION_AVERAGE,
+    SECTION_CURRENT,
     SECTION_FORECAST,
+    SECTION_GAS,
+    SECTION_GRAPH,
     SECTIONS,
     VIEWS,
 )
@@ -57,35 +61,59 @@ SENSOR = EntitySelector(EntitySelectorConfig(domain="sensor"))
 
 OPTIONS_SCHEMA = vol.Schema(
     {
-        vol.Required(CONF_PERIOD): SelectSelector(
-            SelectSelectorConfig(
-                options=PERIODS,
-                translation_key=CONF_PERIOD,
-                mode=SelectSelectorMode.DROPDOWN,
-            )
+        vol.Required(SECTION_GRAPH): section(
+            vol.Schema(
+                {
+                    vol.Required(CONF_PERIOD): SelectSelector(
+                        SelectSelectorConfig(
+                            options=PERIODS,
+                            translation_key=CONF_PERIOD,
+                            mode=SelectSelectorMode.DROPDOWN,
+                        )
+                    ),
+                    vol.Required(CONF_LINE_STYLE): SelectSelector(
+                        SelectSelectorConfig(
+                            options=LINE_STYLES,
+                            translation_key=CONF_LINE_STYLE,
+                            mode=SelectSelectorMode.DROPDOWN,
+                        )
+                    ),
+                    vol.Required(CONF_VIEWS): SelectSelector(
+                        SelectSelectorConfig(
+                            options=VIEWS,
+                            translation_key=CONF_VIEWS,
+                            multiple=True,
+                            mode=SelectSelectorMode.LIST,
+                        )
+                    ),
+                    vol.Required(CONF_SHOW_EXPORT): BooleanSelector(),
+                    vol.Required(CONF_MINMAX): BooleanSelector(),
+                }
+            ),
+            {"collapsed": False},
         ),
-        vol.Required(CONF_LINE_STYLE): SelectSelector(
-            SelectSelectorConfig(
-                options=LINE_STYLES,
-                translation_key=CONF_LINE_STYLE,
-                mode=SelectSelectorMode.DROPDOWN,
-            )
+        vol.Required(SECTION_CURRENT): section(
+            vol.Schema(
+                {
+                    vol.Required(CONF_SHOW_CURRENT): BooleanSelector(),
+                    vol.Required(CONF_SHOW_PRICE_COLORS): BooleanSelector(),
+                }
+            ),
+            {"collapsed": False},
         ),
-        vol.Required(CONF_VIEWS): SelectSelector(
-            SelectSelectorConfig(
-                options=VIEWS,
-                translation_key=CONF_VIEWS,
-                multiple=True,
-                mode=SelectSelectorMode.LIST,
-            )
+        vol.Required(SECTION_AVERAGE): section(
+            vol.Schema(
+                {
+                    vol.Required(CONF_SHOW_AVERAGE): BooleanSelector(),
+                    vol.Required(CONF_SHOW_SAVINGS): BooleanSelector(),
+                }
+            ),
+            {"collapsed": False},
         ),
-        vol.Required(CONF_SHOW_EXPORT): BooleanSelector(),
-        vol.Required(CONF_SHOW_CURRENT): BooleanSelector(),
-        vol.Required(CONF_SHOW_PRICE_COLORS): BooleanSelector(),
-        vol.Required(CONF_SHOW_AVERAGE): BooleanSelector(),
-        vol.Required(CONF_SHOW_SAVINGS): BooleanSelector(),
-        vol.Required(CONF_SHOW_GAS): BooleanSelector(),
-        vol.Required(CONF_MINMAX): BooleanSelector(),
+        vol.Required(SECTION_GAS): section(
+            vol.Schema({vol.Required(CONF_SHOW_GAS): BooleanSelector()}),
+            {"collapsed": False},
+        ),
         vol.Required(SECTION_FORECAST): section(
             vol.Schema(
                 {
@@ -168,7 +196,7 @@ class EnergyPriceGraphOptionsFlow(OptionsFlowWithReload):
         if user_input is not None:
             flat = flatten(user_input)
             if not flat.get(CONF_VIEWS):
-                errors[CONF_VIEWS] = "no_views"
+                errors["base"] = "no_views"
             else:
                 return self.async_create_entry(data=flat)
 

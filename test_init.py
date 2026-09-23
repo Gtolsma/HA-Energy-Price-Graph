@@ -101,36 +101,36 @@ async def test_options_flow_updates_options(
     result = await hass.config_entries.options.async_configure(
         result["flow_id"],
         {
-            "period": "5minute",
-            "line_style": "smooth",
-            "show_current": True,
-            "show_price_colors": True,
-            "show_average": True,
-            "show_savings": True,
-            "show_gas": True,
-            "views": [],
-            "show_export": False,
-            "minmax": True,
+            "graph": {
+                "period": "5minute",
+                "line_style": "smooth",
+                "views": [],
+                "show_export": False,
+                "minmax": True,
+            },
+            "current": {"show_current": True, "show_price_colors": True},
+            "average": {"show_average": True, "show_savings": True},
+            "gas": {"show_gas": True},
             "forecast": {},
             "advanced": {},
         },
     )
     assert result["type"] is FlowResultType.FORM
-    assert result["errors"] == {"views": "no_views"}
+    assert result["errors"] == {"base": "no_views"}
 
     result = await hass.config_entries.options.async_configure(
         result["flow_id"],
         {
-            "period": "5minute",
-            "line_style": "stepped",
-            "show_current": False,
-            "show_price_colors": False,
-            "show_average": False,
-            "show_savings": False,
-            "show_gas": False,
-            "views": ["electricity"],
-            "show_export": False,
-            "minmax": True,
+            "graph": {
+                "period": "5minute",
+                "line_style": "stepped",
+                "views": ["electricity"],
+                "show_export": False,
+                "minmax": True,
+            },
+            "current": {"show_current": False, "show_price_colors": False},
+            "average": {"show_average": False, "show_savings": False},
+            "gas": {"show_gas": False},
             "forecast": {"forecast_import_entity": "sensor.nordpool"},
             "advanced": {"title": "Prijs", "import_entity": "sensor.price"},
         },
@@ -153,7 +153,8 @@ async def test_options_flow_updates_options(
     assert options["import_entity"] == "sensor.price"
     # Form sections are flattened when stored.
     assert options["forecast_import_entity"] == "sensor.nordpool"
-    assert "forecast" not in options and "advanced" not in options
+    for name in ("graph", "current", "average", "gas", "forecast", "advanced"):
+        assert name not in options
     assert options["show_gas"] is False
     assert options["show_savings"] is False
     assert options["show_price_colors"] is False

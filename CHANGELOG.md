@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - The colour of the current price compares with today's average price instead of the last 24 hours. With a forecast sensor the whole day, including upcoming prices, is used.
+- The options form is grouped: Price graph, Current price, Average price, Gas, Forecast and Advanced.
 
 ## [1.5.0] - 2026-09-24
 

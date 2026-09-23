@@ -29,9 +29,23 @@ CONF_FORECAST_EXPORT_ENTITY = "forecast_export_entity"
 CONF_FORECAST_GAS_ENTITY = "forecast_gas_entity"
 
 # Form sections (the stored options stay flat).
+SECTION_GRAPH = "graph"
+SECTION_CURRENT = "current"
+SECTION_AVERAGE = "average"
+SECTION_GAS = "gas"
 SECTION_FORECAST = "forecast"
 SECTION_ADVANCED = "advanced"
 SECTIONS: dict[str, list[str]] = {
+    SECTION_GRAPH: [
+        CONF_PERIOD,
+        CONF_LINE_STYLE,
+        CONF_VIEWS,
+        CONF_SHOW_EXPORT,
+        CONF_MINMAX,
+    ],
+    SECTION_CURRENT: [CONF_SHOW_CURRENT, CONF_SHOW_PRICE_COLORS],
+    SECTION_AVERAGE: [CONF_SHOW_AVERAGE, CONF_SHOW_SAVINGS],
+    SECTION_GAS: [CONF_SHOW_GAS],
     SECTION_FORECAST: [
         CONF_FORECAST_IMPORT_ENTITY,
         CONF_FORECAST_EXPORT_ENTITY,
