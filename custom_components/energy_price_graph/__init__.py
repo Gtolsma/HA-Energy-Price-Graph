@@ -6,66 +6,60 @@ dashboard by registering a small frontend module.
 
 from __future__ import annotations
 
-import hashlib
-import json
 from pathlib import Path
-from urllib.parse import urlencode
+from typing import Any
 
+import voluptuous as vol
+from homeassistant.components import websocket_api
 from homeassistant.components.frontend import add_extra_js_url, remove_extra_js_url
 from homeassistant.components.http import StaticPathConfig
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.config_entries import ConfigEntry, ConfigEntryState
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.typing import ConfigType
 from homeassistant.loader import async_get_integration
 
-from .const import (
-    CONF_EXPORT_ENTITY,
-    CONF_EXPORT_NAME,
-    CONF_IMPORT_ENTITY,
-    CONF_IMPORT_NAME,
-    CONF_LINE_STYLE,
-    CONF_MINMAX,
-    CONF_PERIOD,
-    CONF_SHOW_CURRENT,
-    CONF_SHOW_EXPORT,
-    CONF_TITLE,
-    CONF_VIEWS,
-    DEFAULT_OPTIONS,
-    DOMAIN,
-    JS_FILE,
-    URL_BASE,
-)
+from .const import DEFAULT_OPTIONS, DOMAIN, JS_FILE, URL_BASE
 
 type EnergyPriceGraphConfigEntry = ConfigEntry[str]
 
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
+
 _STATIC_REGISTERED = f"{DOMAIN}_static_registered"
+WS_TYPE_OPTIONS = f"{DOMAIN}/options"
 
 
-def build_module_url(version: str, options: dict) -> str:
-    """Build the module URL; options are passed to the script as query params."""
-    opts = {**DEFAULT_OPTIONS, **options}
-    params: dict[str, str] = {
-        "period": opts[CONF_PERIOD],
-        "views": ",".join(opts[CONF_VIEWS]),
-        "export": "1" if opts[CONF_SHOW_EXPORT] else "0",
-        "minmax": "1" if opts[CONF_MINMAX] else "0",
-        "line": opts[CONF_LINE_STYLE],
-        "current": "1" if opts[CONF_SHOW_CURRENT] else "0",
-    }
-    for key, param in (
-        (CONF_TITLE, "title"),
-        (CONF_IMPORT_ENTITY, "entity"),
-        (CONF_EXPORT_ENTITY, "export_entity"),
-        (CONF_IMPORT_NAME, "import_name"),
-        (CONF_EXPORT_NAME, "export_name"),
-    ):
-        if value := opts.get(key):
-            params[param] = value
+def build_module_url(version: str) -> str:
+    """Build the module URL.
 
-    # Version + hash of the options so browsers fetch a fresh copy after
-    # an update or an options change.
-    digest = hashlib.sha1(json.dumps(params, sort_keys=True).encode()).hexdigest()[:8]
-    params = {"v": f"{version}-{digest}", **params}
-    return f"{URL_BASE}/{JS_FILE}?{urlencode(params)}"
+    Only the version is part of the URL, so the browser fetches a fresh copy
+    after an update. The options are read by the script over the websocket
+    API, so changing them needs no browser refresh.
+    """
+    return f"{URL_BASE}/{JS_FILE}?v={version}"
+
+
+def current_options(hass: HomeAssistant) -> dict[str, Any] | None:
+    """Return the effective options of the loaded entry, or None."""
+    for entry in hass.config_entries.async_entries(DOMAIN):
+        if entry.state is ConfigEntryState.LOADED:
+            return {**DEFAULT_OPTIONS, **entry.options}
+    return None
+
+
+@websocket_api.websocket_command({vol.Required("type"): WS_TYPE_OPTIONS})
+@callback
+def ws_options(
+    hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict
+) -> None:
+    """Send the current options to the frontend module."""
+    connection.send_result(msg["id"], {"options": current_options(hass)})
+
+
+async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
+    """Register the websocket command."""
+    websocket_api.async_register_command(hass, ws_options)
+    return True
 
 
 async def async_setup_entry(
@@ -80,7 +74,7 @@ async def async_setup_entry(
         hass.data[_STATIC_REGISTERED] = True
 
     integration = await async_get_integration(hass, DOMAIN)
-    url = build_module_url(str(integration.version), dict(entry.options))
+    url = build_module_url(str(integration.version))
     add_extra_js_url(hass, url)
     entry.runtime_data = url
     return True

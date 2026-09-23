@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Energy Price Graph",
-        "description": "Adds a dynamic electricity price graph to the built-in Energy dashboard. The price sensors are read from your energy settings (Electricity grid → costs / compensation). You can change the options afterwards via Configure. Refresh your browser after setup."
+        "description": "Adds a dynamic electricity price graph to the built-in Energy dashboard. The price sensors are read from your energy settings (Electricity grid → costs / compensation). You can change the options afterwards via Configure. Refresh your browser once after setup."
       }
     },
     "abort": {
@@ -14,7 +14,7 @@
     "step": {
       "init": {
         "title": "Energy Price Graph options",
-        "description": "After saving, refresh your browser (Ctrl+F5) to see the changes.",
+        "description": "Changes apply the next time you open the Energy dashboard.",
         "data": {
           "period": "Resolution",
           "line_style": "Line style",

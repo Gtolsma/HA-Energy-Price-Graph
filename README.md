@@ -27,13 +27,13 @@ Show your **dynamic electricity price** directly in the **built-in Energy dashbo
 2. Add `https://github.com/Gtolsma/HA-Energy-Price-Graph` with type **Integration**
 3. Search for **Energy Price Graph**, download it and restart Home Assistant
 4. **Settings → Devices & services → Add integration → Energy Price Graph**
-5. Refresh your browser (Ctrl+F5)
+5. Refresh your browser once
 
 ### Manual
 
 1. Copy `custom_components/energy_price_graph` to `/config/custom_components/energy_price_graph`
 2. Restart Home Assistant and add the integration as in step 4 above
-3. Refresh your browser (Ctrl+F5)
+3. Refresh your browser once
 
 ## Options
 
@@ -51,11 +51,11 @@ Go to **Settings → Devices & services → Energy Price Graph → Configure**.
 | Import / export price sensor | from Energy settings | Override the sensors used for the graph only. |
 | Name of import / export line | Import / Export | Legend names. |
 
-After saving, refresh your browser to see the changes.
+Changes apply the next time you open the Energy dashboard; no browser refresh is needed. After installing or updating the integration itself, refresh your browser once.
 
 ## How it works
 
-The Energy dashboard is generated in the frontend by "view strategies". This integration serves a small JavaScript module and registers it with the frontend. The module extends the output of the Electricity and Summary strategies with a standard `statistics-graph` card configured with `energy_date_selection: true`, so it stays in sync with the dashboard's date picker.
+The Energy dashboard is generated in the frontend by "view strategies". This integration serves a small JavaScript module and registers it with the frontend. The module reads the integration's options over the websocket API each time the Energy dashboard is built. The module extends the output of the Electricity and Summary strategies with a standard `statistics-graph` card configured with `energy_date_selection: true`, so it stays in sync with the dashboard's date picker.
 
 The graph does not appear in the Energy dashboard's **Customize cards** dialog; use the integration options instead.
 

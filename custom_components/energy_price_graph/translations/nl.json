@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Energy Price Graph",
-        "description": "Voegt een grafiek met je dynamische stroomprijs toe aan het ingebouwde Energie-dashboard. De prijssensoren worden gelezen uit je energie-instellingen (Elektriciteitsnet → kosten / vergoeding). Je kunt de opties achteraf wijzigen via Configureren. Ververs je browser na het instellen."
+        "description": "Voegt een grafiek met je dynamische stroomprijs toe aan het ingebouwde Energie-dashboard. De prijssensoren worden gelezen uit je energie-instellingen (Elektriciteitsnet → kosten / vergoeding). Je kunt de opties achteraf wijzigen via Configureren. Ververs je browser eenmalig na het instellen."
       }
     },
     "abort": {
@@ -14,7 +14,7 @@
     "step": {
       "init": {
         "title": "Opties Energy Price Graph",
-        "description": "Ververs na het opslaan je browser (Ctrl+F5) om de wijzigingen te zien.",
+        "description": "Wijzigingen worden toegepast zodra je het Energie-dashboard opnieuw opent.",
         "data": {
           "period": "Resolutie",
           "line_style": "Lijnstijl",
