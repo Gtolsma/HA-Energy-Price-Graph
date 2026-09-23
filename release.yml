@@ -1,0 +1,37 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Check tag matches manifest version and changelog
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          MANIFEST=$(jq -r .version custom_components/energy_price_graph/manifest.json)
+          if [ "$TAG" != "$MANIFEST" ]; then
+            echo "::error::Release tag ($TAG) does not match manifest.json version ($MANIFEST). Bump the version in manifest.json first."
+            exit 1
+          fi
+          if ! grep -q "^## \[$TAG\]" CHANGELOG.md; then
+            echo "::error::CHANGELOG.md has no entry for $TAG."
+            exit 1
+          fi
+
+      - name: Build zip
+        run: |
+          cd custom_components/energy_price_graph
+          zip -r "$GITHUB_WORKSPACE/energy_price_graph.zip" . -x "__pycache__/*"
+
+      - name: Upload zip to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$GITHUB_REF_NAME" energy_price_graph.zip --clobber

@@ -5,6 +5,20 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-09-24
+
+### Added
+
+- Resolution *Auto (fine)*, the new default for new installations: 5-minute statistics for periods up to a week, so quarter-hour prices change exactly at :00, :15, :30 and :45; hourly or daily averages for longer periods. Falls back to hourly averages when there are no 5-minute statistics.
+- Current price chips are coloured green, orange or red compared to the average of the last 24 hours (option *Colour the current price*).
+- Savings compared to the market average in the average price card (option *Show savings*).
+- Upcoming prices as a dashed line, from forecast sensors chosen in the new *Forecast* section of the options (import, export and gas). Nord Pool, ENTSO-e, Zonneplan and Frank Energie style attributes are recognised.
+- Gas price graph on the Gas tab (option *Show gas price*), with current price chip.
+
+### Changed
+
+- The options form groups the forecast sensors and the overrides (title, sensors, names) in collapsible sections.
+
 ## [1.4.1] - 2026-09-23
 
 ### Fixed
@@ -74,6 +88,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - English, Dutch and German default labels; English and Dutch UI translations.
 - Integration icon (`brand/`), shown in Home Assistant 2026.3 and newer.
 
+[1.5.0]: https://github.com/Gtolsma/HA-Energy-Price-Graph/compare/1.4.1...1.5.0
 [1.4.1]: https://github.com/Gtolsma/HA-Energy-Price-Graph/compare/1.4.0...1.4.1
 [1.4.0]: https://github.com/Gtolsma/HA-Energy-Price-Graph/compare/1.3.0...1.4.0
 [1.3.0]: https://github.com/Gtolsma/HA-Energy-Price-Graph/compare/1.2.2...1.3.0
