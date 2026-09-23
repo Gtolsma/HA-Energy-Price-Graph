@@ -23,7 +23,7 @@ Show your **dynamic electricity price** directly in the **built-in Energy dashbo
 ### HACS (custom repository)
 
 1. HACS → ⋮ → **Custom repositories**
-2. Add `https://github.com/GITHUB_USER/HA-Energy-Price-Graph` with type **Integration**
+2. Add `https://github.com/Gtolsma/HA-Energy-Price-Graph` with type **Integration**
 3. Search for **Energy Price Graph**, download it and restart Home Assistant
 4. **Settings → Devices & services → Add integration → Energy Price Graph**
 5. Refresh your browser (Ctrl+F5)

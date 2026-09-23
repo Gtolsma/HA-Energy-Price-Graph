@@ -1,13 +1,13 @@
 {
   "domain": "energy_price_graph",
   "name": "Energy Price Graph",
-  "codeowners": ["@GITHUB_USER"],
+  "codeowners": ["@Gtolsma"],
   "config_flow": true,
   "dependencies": ["frontend", "http"],
-  "documentation": "https://github.com/GITHUB_USER/HA-Energy-Price-Graph",
+  "documentation": "https://github.com/Gtolsma/HA-Energy-Price-Graph",
   "integration_type": "service",
   "iot_class": "calculated",
-  "issue_tracker": "https://github.com/GITHUB_USER/HA-Energy-Price-Graph/issues",
+  "issue_tracker": "https://github.com/Gtolsma/HA-Energy-Price-Graph/issues",
   "requirements": [],
   "single_config_entry": true,
   "version": "1.0.0"

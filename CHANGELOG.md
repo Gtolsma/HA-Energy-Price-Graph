@@ -17,5 +17,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - English, Dutch and German default labels; English and Dutch UI translations.
 - Integration icon (`brand/`), shown in Home Assistant 2026.3 and newer.
 
-[Unreleased]: https://github.com/GITHUB_USER/HA-Energy-Price-Graph/compare/v1.0.0...HEAD
-[1.0.0]: https://github.com/GITHUB_USER/HA-Energy-Price-Graph/releases/tag/v1.0.0
+[Unreleased]: https://github.com/Gtolsma/HA-Energy-Price-Graph/compare/1.0.0...HEAD
+[1.0.0]: https://github.com/Gtolsma/HA-Energy-Price-Graph/releases/tag/1.0.0
