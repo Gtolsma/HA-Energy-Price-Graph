@@ -56,6 +56,8 @@ const FINE_KEY = "energy_price_graph_fine";
 const FORECAST_KEY = "energy_price_graph_forecast";
 
 const TAG = "[energy-price-graph]";
+// Version of this module, from the ?v= parameter the loader adds.
+const MODULE_VERSION = params.get("v");
 const MARK = "__energyPriceInjected";
 const LINE_STYLES = ["smooth", "straight", "stepped"];
 
@@ -67,7 +69,9 @@ const LINE_STYLES = ["smooth", "straight", "stepped"];
 async function loadOptions(hass) {
   let o;
   try {
-    o = (await hass.callWS({ type: "energy_price_graph/options" }))?.options;
+    const res = await hass.callWS({ type: "energy_price_graph/options" });
+    reloadIfOutdated(res?.version);
+    o = res?.options;
   } catch (e) {
     return; // integration not loaded (e.g. script used manually): keep URL options
   }
@@ -91,6 +95,24 @@ async function loadOptions(hass) {
   OPT.exportEntity = o.export_entity || null;
   OPT.importName = o.import_name || null;
   OPT.exportName = o.export_name || null;
+}
+
+/**
+ * After an update of the integration an open browser tab still runs the old
+ * module. When the installed version differs from the one running here,
+ * reload the page once so the loader imports the new module.
+ */
+function reloadIfOutdated(serverVersion) {
+  if (!serverVersion || !MODULE_VERSION || serverVersion === MODULE_VERSION) return;
+  const key = `energy-price-graph-reloaded-${serverVersion}`;
+  try {
+    if (sessionStorage.getItem(key)) return; // reloaded once already: avoid a loop
+    sessionStorage.setItem(key, "1");
+  } catch (e) {
+    return; // no storage: do not risk a reload loop
+  }
+  console.info(TAG, `updated from ${MODULE_VERSION} to ${serverVersion}, reloading`);
+  location.reload();
 }
 
 /**
@@ -135,7 +157,7 @@ function themeColor(varName, fallback) {
 const LABELS = {
   en: {
     title: "Electricity price", imp: "Import", exp: "Export", now: "Current price",
-    gasTitle: "Gas price", gas: "Gas", forecast: "forecast", todayAvg: "average last 24 hours",
+    gasTitle: "Gas price", gas: "Gas", forecast: "forecast", todayAvg: "average today",
     saved: "Saved vs market", extra: "Paid extra vs market",
     savingsHelp: "(market price − your price) × energy, for import and export together",
     avgTitle: "Average price", you: "You", market: "Market",
@@ -144,7 +166,7 @@ const LABELS = {
   },
   nl: {
     title: "Stroomprijs", imp: "Inkoop", exp: "Teruglevering", now: "Huidige prijs",
-    gasTitle: "Gasprijs", gas: "Gas", forecast: "verwacht", todayAvg: "gemiddelde afgelopen 24 uur",
+    gasTitle: "Gasprijs", gas: "Gas", forecast: "verwacht", todayAvg: "gemiddelde vandaag",
     saved: "Bespaard t.o.v. markt", extra: "Meer betaald t.o.v. markt",
     savingsHelp: "(marktprijs − jouw prijs) × energie, voor inkoop en teruglevering samen",
     avgTitle: "Gemiddelde prijs", you: "Jij", market: "Markt",
@@ -153,7 +175,7 @@ const LABELS = {
   },
   de: {
     title: "Strompreis", imp: "Bezug", exp: "Einspeisung", now: "Aktueller Preis",
-    gasTitle: "Gaspreis", gas: "Gas", forecast: "Prognose", todayAvg: "Durchschnitt der letzten 24 Stunden",
+    gasTitle: "Gaspreis", gas: "Gas", forecast: "Prognose", todayAvg: "Durchschnitt heute",
     saved: "Ersparnis ggü. Markt", extra: "Mehrkosten ggü. Markt",
     savingsHelp: "(Marktpreis − dein Preis) × Energie, Bezug und Einspeisung zusammen",
     avgTitle: "Durchschnittspreis", you: "Du", market: "Markt",
@@ -260,6 +282,7 @@ function graphCard(title, entities, forecasts, collectionKey, L) {
         color: e.color,
         better: e.better,
         colored: OPT.priceColors,
+        forecast: forecasts.find((f) => f.reference === e.entity)?.entity || null,
         tooltip: `${L.now}: ${e.name}`,
         todayAvgLabel: L.todayAvg,
       })),
@@ -343,16 +366,25 @@ function injectOverview(view, card) {
   return true;
 }
 
-/** Gas tab: price graph directly after the gas consumption graph. */
+/**
+ * Gas tab: price graph below the gas consumption graph and its totals table,
+ * which share a row (2/3 + 1/3), so that row stays intact.
+ */
 function injectGas(view, card) {
+  const after = (cards) => {
+    let idx = -1;
+    cards.forEach((c, i) => {
+      if (c.type === "energy-gas-graph" || c.type === "energy-sources-table") idx = i;
+    });
+    return idx;
+  };
   if (Array.isArray(view.cards)) {
-    const idx = view.cards.findIndex((c) => c.type === "energy-gas-graph");
-    view.cards.splice(idx === -1 ? 0 : idx + 1, 0, card);
+    view.cards.splice(after(view.cards) + 1, 0, card);
     return true;
   }
   for (const section of view.sections || []) {
     const cards = section.cards || [];
-    const idx = cards.findIndex((c) => c.type === "energy-gas-graph");
+    const idx = after(cards);
     if (idx !== -1) {
       cards.splice(idx + 1, 0, card);
       return true;
@@ -721,33 +753,55 @@ function decorateHeader(card) {
 }
 
 /* Today's average per sensor, for colouring the current price. */
-// Average of the last 24 hours per sensor (works at any time of day, also
-// just after midnight), refreshed every 15 minutes.
-const TODAY_AVG = new Map(); // entity -> { avg, at, pending }
+// Today's average per sensor. With a forecast sensor the whole day is known
+// (past and upcoming prices), otherwise the recorded prices since midnight
+// are used. Refreshed every 15 minutes.
+const TODAY_AVG = new Map(); // entity -> { day, avg, at, pending }
+
+function localMidnight() {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
+}
+
+function forecastTodayAverage(hass, item, current) {
+  if (!item.forecast) return null;
+  const points = forecastPoints(hass?.states?.[item.forecast]);
+  const start = localMidnight();
+  const end = start + 86400000;
+  const today = points.filter(([t]) => t >= start && t < end);
+  if (!today.length) return null;
+  const factor = forecastScale(today, current);
+  return today.reduce((sum, [, v]) => sum + v * factor, 0) / today.length;
+}
 
 function priceLevel(card, hass, item, current) {
   if (!Number.isFinite(current)) return null;
-  const cached = TODAY_AVG.get(item.entity);
-  const fresh = cached && cached.at && Date.now() - cached.at < 15 * 60000;
-  if (!fresh && !cached?.pending) {
-    TODAY_AVG.set(item.entity, { ...(cached || {}), pending: true });
-    hass
-      .callWS({
-        type: "recorder/statistics_during_period",
-        start_time: new Date(Date.now() - 24 * 3600000).toISOString(),
-        statistic_ids: [item.entity],
-        period: "hour",
-        types: ["mean"],
-      })
-      .then((res) => {
-        const vals = (res?.[item.entity] || []).map((r) => r.mean).filter((v) => typeof v === "number");
-        const avg = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
-        TODAY_AVG.set(item.entity, { avg, at: Date.now(), pending: false });
-        decorateHeader(card);
-      })
-      .catch(() => TODAY_AVG.set(item.entity, { avg: null, at: Date.now(), pending: false }));
+  let avg = forecastTodayAverage(hass, item, current);
+  if (avg == null) {
+    const day = localMidnight();
+    const cached = TODAY_AVG.get(item.entity);
+    const fresh = cached && cached.day === day && cached.at && Date.now() - cached.at < 15 * 60000;
+    if (!fresh && !cached?.pending) {
+      TODAY_AVG.set(item.entity, { ...(cached || {}), pending: true });
+      hass
+        .callWS({
+          type: "recorder/statistics_during_period",
+          start_time: new Date(day).toISOString(),
+          statistic_ids: [item.entity],
+          period: "hour",
+          types: ["mean"],
+        })
+        .then((res) => {
+          const vals = (res?.[item.entity] || []).map((r) => r.mean).filter((v) => typeof v === "number");
+          const a = vals.length ? vals.reduce((x, y) => x + y, 0) / vals.length : null;
+          TODAY_AVG.set(item.entity, { day, avg: a, at: Date.now(), pending: false });
+          decorateHeader(card);
+        })
+        .catch(() => TODAY_AVG.set(item.entity, { day, avg: null, at: Date.now(), pending: false }));
+    }
+    avg = cached?.day === day ? cached.avg : null;
   }
-  const avg = cached?.avg ?? null;
   if (avg == null || !avg) return null;
   // Relative difference, positive = favourable.
   let rel = (current - avg) / Math.abs(avg);

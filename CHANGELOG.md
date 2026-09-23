@@ -5,6 +5,17 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.1] - 2026-09-24
+
+### Fixed
+
+- After an update, open browser tabs kept running the old version until a hard refresh. The integration now registers a small loader that is never cached and always imports the installed version, and an open tab reloads itself once when it notices a newer version.
+- Gas tab: the price graph is placed below the gas consumption graph and its totals table, so these stay side by side.
+
+### Changed
+
+- The colour of the current price compares with today's average price instead of the last 24 hours. With a forecast sensor the whole day, including upcoming prices, is used.
+
 ## [1.5.0] - 2026-09-24
 
 ### Added
@@ -88,6 +99,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - English, Dutch and German default labels; English and Dutch UI translations.
 - Integration icon (`brand/`), shown in Home Assistant 2026.3 and newer.
 
+[1.5.1]: https://github.com/Gtolsma/HA-Energy-Price-Graph/compare/1.5.0...1.5.1
 [1.5.0]: https://github.com/Gtolsma/HA-Energy-Price-Graph/compare/1.4.1...1.5.0
 [1.4.1]: https://github.com/Gtolsma/HA-Energy-Price-Graph/compare/1.4.0...1.4.1
 [1.4.0]: https://github.com/Gtolsma/HA-Energy-Price-Graph/compare/1.3.0...1.4.0

@@ -5,7 +5,7 @@ Show your **dynamic electricity price** directly in the **built-in Energy dashbo
 ![Electricity price graph on the Energy dashboard, with the current import and export price in the header](https://raw.githubusercontent.com/Gtolsma/HA-Energy-Price-Graph/main/docs/images/price-graph.png)
 
 - Import price and (optionally) export / feed-in price as two lines in one graph
-- Current import and export price as chips in the card header, coloured green / orange / red compared to the last 24 hours
+- Current import and export price as chips in the card header, coloured green / orange / red compared to today's average
 - Average price card on the Electricity tab: what you actually paid / received per kWh next to the average market price, and how much you saved
 - Upcoming prices as a dashed line (from a forecast sensor you choose)
 - Gas price graph on the Gas tab
@@ -57,7 +57,7 @@ Go to **Settings → Devices & services → Energy Price Graph → Configure**.
 | Show the price graph on tabs | Electricity, Summary | Energy dashboard tabs where the electricity price graph is added. The Summary tab only exists when you track more than one energy type or have a grid power sensor. |
 | Show export price | On | Adds a second line when the export price is a different sensor than the import price. |
 | Show current price | On | Small chips in the card header with the current price. |
-| Colour the current price | On | Green when the current price is favourable compared to the average of the last 24 hours (low for import and gas, high for export), orange around the average (within 10 %), red when unfavourable. |
+| Colour the current price | On | Green when the current price is favourable compared to today's average price (low for import and gas, high for export), orange around the average (within 10 %), red when unfavourable. With a forecast sensor the average covers the whole day, including the upcoming prices; otherwise the prices recorded so far today are used (so there is no colour in the first hour after midnight). |
 | Show average price | On | Card below *Energy distribution* on the Electricity tab. **You**: what you actually paid (import) or received (export) per kWh in the selected period, calculated as cost ÷ energy from the Energy dashboard statistics. **Market**: the plain average of the price sensor over the same period (or your fixed price, if you use one). Only periods in which both energy and cost were recorded are counted. The percentage shows how you did compared to the market (green is better). |
 | Show savings | On | Adds to the average price card how much you saved (or paid extra) compared to the market average: (market − your price) × kWh for import plus (your price − market) × kWh for export. |
 | Show gas price | On | Price graph on the Gas tab, below the gas consumption graph, using the gas price sensor from your Energy settings. |
@@ -65,7 +65,7 @@ Go to **Settings → Devices & services → Energy Price Graph → Configure**.
 | **Forecast** section | – | Sensors that have the upcoming prices in their attributes, for import, export and gas. Upcoming prices are drawn as a dashed line from now on; select tomorrow in the date picker to see tomorrow. Supported formats include Nord Pool (`raw_today` / `raw_tomorrow`), ENTSO-e (`prices`), Zonneplan (`forecast`) and Frank Energie (`prices`); values in cents or smaller units are scaled automatically to the unit of your price sensor. |
 | **Advanced** section | – | Card title, sensors to use instead of the ones in your Energy settings (import, export, gas) and the legend names of the import and export lines. |
 
-Changes apply the next time you open the Energy dashboard; no browser refresh is needed. After installing or updating the integration itself, refresh your browser once.
+Changes apply the next time you open the Energy dashboard; no browser refresh is needed. After an update of the integration, an open browser tab reloads itself once when you open the Energy dashboard (from version 1.5.1 on).
 
 ## How it works
 

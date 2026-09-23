@@ -33,7 +33,7 @@
           "views": "Tabbladen van het Energie-dashboard waarop de stroomprijsgrafiek verschijnt.",
           "show_export": "Voegt een tweede lijn toe als de terugleverprijs een andere sensor is dan de inkoopprijs.",
           "show_current": "Kleine blokjes rechtsboven in de kaart met de huidige prijs.",
-          "show_price_colors": "Groen als de huidige prijs gunstig is ten opzichte van het gemiddelde van de afgelopen 24 uur (laag voor inkoop en gas, hoog voor teruglevering), oranje rond het gemiddelde, rood als hij ongunstig is.",
+          "show_price_colors": "Groen als de huidige prijs gunstig is ten opzichte van de gemiddelde prijs van vandaag (de hele dag als er een voorspellingssensor is ingesteld, anders de prijzen tot nu toe) (laag voor inkoop en gas, hoog voor teruglevering), oranje rond het gemiddelde, rood als hij ongunstig is.",
           "show_average": "Kaart onder Energieverdeling op het tabblad Elektriciteit met je gemiddelde inkoop- en terugleverprijs voor de gekozen periode, naast de gemiddelde marktprijs.",
           "show_savings": "Voegt aan de kaart met de gemiddelde prijs toe hoeveel je bespaarde (of meer betaalde) ten opzichte van het marktgemiddelde.",
           "show_gas": "Prijsgrafiek op het tabblad Gas, met de gasprijssensor uit je energie-instellingen.",

@@ -27,12 +27,16 @@ async def _setup(hass: HomeAssistant):
     return result["result"]
 
 
-async def _ws_options(hass_ws_client) -> dict | None:
+async def _ws(hass_ws_client) -> dict:
     client = await hass_ws_client()
     await client.send_json_auto_id({"type": f"{DOMAIN}/options"})
     msg = await client.receive_json()
     assert msg["success"]
-    return msg["result"]["options"]
+    return msg["result"]
+
+
+async def _ws_options(hass_ws_client) -> dict | None:
+    return (await _ws(hass_ws_client))["options"]
 
 
 async def test_setup_registers_module(
@@ -40,14 +44,25 @@ async def test_setup_registers_module(
 ) -> None:
     entry = await _setup(hass)
     urls = _our_urls(hass)
-    assert len(urls) == 1
-    # Only the version is in the URL; options come over the websocket API.
-    assert set(parse_qs(urlparse(urls[0]).query)) == {"v"}
-
+    # A fixed loader URL is registered; it is never cached ...
+    assert urls == ["/energy_price_graph_loader.js"]
     client = await hass_client()
     resp = await client.get(urls[0])
     assert resp.status == 200
+    assert resp.headers["Cache-Control"] == "no-store"
+    loader = await resp.text()
+    # ... and imports the module of the installed version.
+    module_url = loader.split('"')[1]
+    assert module_url.startswith("/energy_price_graph/energy-price-graph.js?v=")
+    version = parse_qs(urlparse(module_url).query)["v"][0]
+
+    resp = await client.get(module_url)
+    assert resp.status == 200
     assert "energy-view-strategy" in await resp.text()
+
+    # The websocket API reports the installed version, so an open page can
+    # notice it runs an older module.
+    assert (await _ws(hass_ws_client))["version"] == version
 
     options = await _ws_options(hass_ws_client)
     assert options["period"] == "auto_fine"

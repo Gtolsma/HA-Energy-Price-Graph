@@ -33,7 +33,7 @@
           "views": "Tabs of the Energy dashboard where the electricity price graph is shown.",
           "show_export": "Adds a second line when the export price is a different sensor than the import price.",
           "show_current": "Small chips in the card header with the current price.",
-          "show_price_colors": "Green when the current price is favourable compared to the average of the last 24 hours (low for import and gas, high for export), orange around the average, red when unfavourable.",
+          "show_price_colors": "Green when the current price is favourable compared to today's average price (the whole day when a forecast sensor is set, otherwise the prices so far today) (low for import and gas, high for export), orange around the average, red when unfavourable.",
           "show_average": "Card below Energy distribution on the Electricity tab with your average import and export price for the selected period, next to the average market price.",
           "show_savings": "Adds how much you saved (or paid extra) compared to the market average to the average price card.",
           "show_gas": "Price graph on the Gas tab, using the gas price sensor from your energy settings.",
