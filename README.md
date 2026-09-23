@@ -79,8 +79,6 @@ If you previously used `energy-price-injector.js` via `frontend: extra_module_ur
 
 ```bash
 pip install -r requirements_test.txt
-# the frontend package matching the installed Home Assistant version:
-pip install "$(python -c "import json, os, homeassistant.components.frontend as f; print(next(r for r in json.load(open(os.path.join(os.path.dirname(f.__file__), 'manifest.json')))['requirements'] if r.startswith('home-assistant-frontend')))")"
 pytest
 ```
 
@@ -90,11 +88,10 @@ This project uses [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH
 
 To release a new version:
 
-1. Add your changes under `## [Unreleased]` in `CHANGELOG.md` while you work.
-2. Bump `version` in `custom_components/energy_price_graph/manifest.json` (for example `1.0.0` → `1.1.0`).
-3. In `CHANGELOG.md`, rename `[Unreleased]` to the new version and date, and add a new empty `[Unreleased]` section.
-4. Commit and push: `git commit -am "Release 1.1.0" && git push`
-5. On GitHub, go to **Releases → Draft a new release**, create tag `1.1.0` and publish it.
+1. Bump `version` in `custom_components/energy_price_graph/manifest.json` (for example `1.0.0` → `1.1.0`).
+2. Add a section for the new version with its date at the top of `CHANGELOG.md` (for example `## [1.1.0] - 2026-10-01`).
+3. Commit and push: `git commit -am "Release 1.1.0" && git push`
+4. On GitHub, go to **Releases → Draft a new release**, create tag `1.1.0` and publish it.
 
 The release workflow checks that the tag, `manifest.json` and `CHANGELOG.md` agree, then builds `energy_price_graph.zip` and attaches it to the release.
 

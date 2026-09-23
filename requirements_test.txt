@@ -1,1 +1,4 @@
-pytest-homeassistant-custom-component
+# Keep these two in sync: the frontend version must match the Home Assistant
+# version that pytest-homeassistant-custom-component installs.
+pytest-homeassistant-custom-component==0.13.316
+home-assistant-frontend==20260128.6
