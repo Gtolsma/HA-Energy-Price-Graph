@@ -79,6 +79,20 @@ pip install -r requirements_test.txt
 pytest
 ```
 
+## Versioning and releases
+
+This project uses [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`) and keeps a [CHANGELOG](CHANGELOG.md). HACS installs the zip attached to each GitHub release and offers updates when a new release is published.
+
+To release a new version:
+
+1. Add your changes under `## [Unreleased]` in `CHANGELOG.md` while you work.
+2. Bump `version` in `custom_components/energy_price_graph/manifest.json` (for example `1.0.0` → `1.1.0`).
+3. In `CHANGELOG.md`, rename `[Unreleased]` to the new version and date, and add a new empty `[Unreleased]` section.
+4. Commit and push: `git commit -am "Release 1.1.0" && git push`
+5. On GitHub, go to **Releases → Draft a new release**, create tag `v1.1.0` and publish it.
+
+The release workflow checks that the tag, `manifest.json` and `CHANGELOG.md` agree, then builds `energy_price_graph.zip` and attaches it to the release.
+
 ## License
 
 MIT
