@@ -79,6 +79,8 @@ If you previously used `energy-price-injector.js` via `frontend: extra_module_ur
 
 ```bash
 pip install -r requirements_test.txt
+# the frontend package matching the installed Home Assistant version:
+pip install "$(python -c "import json, os, homeassistant.components.frontend as f; print(next(r for r in json.load(open(os.path.join(os.path.dirname(f.__file__), 'manifest.json')))['requirements'] if r.startswith('home-assistant-frontend')))")"
 pytest
 ```
 
