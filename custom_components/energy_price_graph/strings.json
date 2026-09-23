@@ -1,0 +1,62 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Energy Price Graph",
+        "description": "Adds a dynamic electricity price graph to the built-in Energy dashboard. The price sensors are read from your energy settings (Electricity grid → costs / compensation). You can change the options afterwards via Configure. Refresh your browser after setup."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Energy Price Graph is already set up."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Energy Price Graph options",
+        "description": "After saving, refresh your browser (Ctrl+F5) to see the changes.",
+        "data": {
+          "period": "Resolution",
+          "views": "Show on tabs",
+          "show_export": "Show export (feed-in) price",
+          "minmax": "Show min/max per period",
+          "title": "Card title",
+          "import_entity": "Import price sensor (override)",
+          "export_entity": "Export price sensor (override)",
+          "import_name": "Name of import line",
+          "export_name": "Name of export line"
+        },
+        "data_description": {
+          "period": "Auto follows the selected date range. 5-minute data is only kept as long as your recorder keeps history (purge_keep_days).",
+          "views": "Tabs of the Energy dashboard where the graph is shown.",
+          "show_export": "Adds a second line when the export price is a different sensor than the import price.",
+          "minmax": "Also draws the lowest and highest price within each period.",
+          "title": "Leave empty for the default title.",
+          "import_entity": "Leave empty to use the sensor from your energy settings.",
+          "export_entity": "Leave empty to use the sensor from your energy settings.",
+          "import_name": "Leave empty for the default.",
+          "export_name": "Leave empty for the default."
+        }
+      }
+    },
+    "error": {
+      "no_views": "Select at least one tab."
+    }
+  },
+  "selector": {
+    "period": {
+      "options": {
+        "auto": "Auto",
+        "5minute": "5 minutes",
+        "hour": "Hour",
+        "day": "Day"
+      }
+    },
+    "views": {
+      "options": {
+        "electricity": "Electricity",
+        "overview": "Summary"
+      }
+    }
+  }
+}
