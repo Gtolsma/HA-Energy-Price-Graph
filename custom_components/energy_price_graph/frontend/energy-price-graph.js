@@ -29,12 +29,15 @@ const OPT = {
   // smooth | straight | stepped
   line: ["smooth", "straight", "stepped"].includes(params.get("line"))
     ? params.get("line")
-    : "stepped",
+    : "straight",
+  current: params.get("current") !== "0",
 };
 
 // Marker key on our card config. The statistics-graph card ignores unknown
 // keys, so it is safe to carry it along; we use it to recognise our cards.
 const LINE_KEY = "energy_price_graph_line";
+// Marker key with the current-price chips to show in the card header.
+const NOW_KEY = "energy_price_graph_now";
 
 const TAG = "[energy-price-graph]";
 const MARK = "__energyPriceInjected";
@@ -77,9 +80,9 @@ function themeColor(varName, fallback) {
 }
 
 const LABELS = {
-  en: { title: "Electricity price", imp: "Import", exp: "Export" },
-  nl: { title: "Stroomprijs", imp: "Inkoop", exp: "Teruglevering" },
-  de: { title: "Strompreis", imp: "Bezug", exp: "Einspeisung" },
+  en: { title: "Electricity price", imp: "Import", exp: "Export", now: "Current price" },
+  nl: { title: "Stroomprijs", imp: "Inkoop", exp: "Teruglevering", now: "Huidige prijs" },
+  de: { title: "Strompreis", imp: "Bezug", exp: "Einspeisung", now: "Aktueller Preis" },
 };
 
 function labels(hass) {
@@ -89,6 +92,7 @@ function labels(hass) {
     title: OPT.title || l.title,
     imp: OPT.importName || l.imp,
     exp: OPT.exportName || l.exp,
+    now: l.now,
   };
 }
 
@@ -123,6 +127,14 @@ function priceCard({ imp, exp }, collectionKey, L) {
     // A legend is only useful with more than one line.
     hide_legend: entities.length < 2 && !OPT.minmax,
     [LINE_KEY]: OPT.line,
+    ...(OPT.current && {
+      [NOW_KEY]: entities.map((e) => ({
+        entity: e.entity,
+        name: e.name,
+        color: e.color,
+        tooltip: `${L.now}: ${e.name}`,
+      })),
+    }),
     grid_options: { columns: "full" },
   };
 }
@@ -239,6 +251,10 @@ function installRegistryHooks() {
       .catch(() => {});
   }
   reg
+    .whenDefined("hui-statistics-graph-card")
+    .then(() => patchStatisticsCard(get.call(reg, "hui-statistics-graph-card")))
+    .catch(() => {});
+  reg
     .whenDefined("ha-chart-base")
     .then(() => patchChartBase(get.call(reg, "ha-chart-base")))
     .catch(() => {});
@@ -254,6 +270,16 @@ function installRegistryHooks() {
  * ------------------------------------------------------------------------ */
 
 /** Walk up from the chart to the card that hosts it and read our marker. */
+/** Walk up from a chart to the statistics-graph card that hosts it. */
+function hostCard(chart) {
+  let node = chart;
+  for (let i = 0; i < 6 && node; i++) {
+    node = node.getRootNode?.()?.host;
+    if (node && node.localName === "hui-statistics-graph-card") return node;
+  }
+  return null;
+}
+
 function lineStyleFor(chart) {
   let node = chart;
   for (let i = 0; i < 6 && node; i++) {
@@ -288,6 +314,8 @@ function patchChartBase(cls) {
   const original = proto.willUpdate;
   proto.willUpdate = function (changed) {
     try {
+      const card = hostCard(this);
+      if (card) queueMicrotask(() => decorateHeader(card));
       if (changed?.has?.("data")) {
         const style = lineStyleFor(this);
         if (style && style !== "smooth") {
@@ -306,3 +334,104 @@ installRegistryHooks();
 // Keep checking for a replaced registry for a while after start-up.
 const hookTimer = setInterval(installRegistryHooks, 100);
 setTimeout(() => clearInterval(hookTimer), 120000);
+
+/* ------------------------------------------------------------------------ *
+ * Current price chips
+ *
+ * Small chips in the card header (like the kWh total on the energy usage
+ * graph) with the current import and export price.
+ * ------------------------------------------------------------------------ */
+
+function cardConfig(card) {
+  return card?._config ?? card?.parentElement?.config ?? card?.config;
+}
+
+function formatPrice(hass, stateObj) {
+  const value = Number(stateObj?.state);
+  if (!stateObj || !Number.isFinite(value)) return "—";
+  const lang = hass?.locale?.language || hass?.language || "en";
+  const num = new Intl.NumberFormat(lang, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 3,
+  }).format(value);
+  let unit = stateObj.attributes?.unit_of_measurement || "";
+  const m = unit.match(/^([A-Z]{3})\/(.+)$/);
+  if (m) {
+    try {
+      const symbol = new Intl.NumberFormat(lang, {
+        style: "currency",
+        currency: m[1],
+        currencyDisplay: "narrowSymbol",
+      })
+        .formatToParts(0)
+        .find((p) => p.type === "currency")?.value;
+      if (symbol) unit = `${symbol}/${m[2]}`;
+    } catch (e) {
+      /* keep unit as is */
+    }
+  }
+  return `${num} ${unit}`.trim();
+}
+
+const CHIP_STYLE =
+  "display:inline-flex;align-items:center;gap:6px;white-space:nowrap;" +
+  "font-size:var(--ha-font-size-m,14px);font-weight:var(--ha-font-weight-medium,500);" +
+  "line-height:20px;letter-spacing:normal;color:var(--primary-text-color);" +
+  "padding:var(--ha-space-1,4px) var(--ha-space-2,8px);" +
+  "border-radius:var(--ha-border-radius-md,8px);border:1px solid var(--divider-color);";
+
+function decorateHeader(card) {
+  try {
+    const items = cardConfig(card)?.[NOW_KEY];
+    if (!Array.isArray(items) || !items.length) return;
+    const header = card.shadowRoot?.querySelector(".card-header");
+    if (!header) return;
+
+    let box = header.querySelector(".epg-now");
+    if (!box) {
+      box = document.createElement("span");
+      box.className = "epg-now";
+      box.style.cssText =
+        "display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:center;" +
+        "gap:8px;margin-inline-start:auto;margin-inline-end:8px;";
+      const link = header.querySelector("a");
+      header.insertBefore(box, link && link.parentNode === header ? link : null);
+    }
+
+    const hass = card.hass;
+    items.forEach((item, i) => {
+      let chip = box.children[i];
+      if (!chip) {
+        chip = document.createElement("span");
+        chip.style.cssText = CHIP_STYLE;
+        const dot = document.createElement("span");
+        dot.style.cssText =
+          "width:8px;height:8px;border-radius:50%;flex:none;display:inline-block;";
+        const text = document.createElement("span");
+        chip.append(dot, text);
+        box.append(chip);
+      }
+      const [dot, text] = chip.children;
+      dot.style.background = item.color || "var(--primary-color)";
+      const value = formatPrice(hass, hass?.states?.[item.entity]);
+      if (text.textContent !== value) text.textContent = value;
+      chip.title = item.tooltip || item.name || "";
+      chip.setAttribute("aria-label", `${chip.title} ${value}`);
+    });
+    while (box.children.length > items.length) box.lastElementChild.remove();
+  } catch (e) {
+    console.warn(TAG, "could not show current price", e);
+  }
+}
+
+function patchStatisticsCard(cls) {
+  const proto = cls?.prototype;
+  if (!proto || proto[MARK]) return;
+  const original = proto.updated;
+  proto.updated = function (changed) {
+    const result = original?.call(this, changed);
+    decorateHeader(this);
+    return result;
+  };
+  proto[MARK] = true;
+}

@@ -20,6 +20,7 @@
           "line_style": "Line style",
           "views": "Show on tabs",
           "show_export": "Show export (feed-in) price",
+          "show_current": "Show current price",
           "minmax": "Show min/max per period",
           "title": "Card title",
           "import_entity": "Import price sensor (override)",
@@ -29,9 +30,10 @@
         },
         "data_description": {
           "period": "Auto follows the selected date range. 5-minute data is only kept as long as your recorder keeps history (purge_keep_days).",
-          "line_style": "Stepped shows the exact price per period (recommended for dynamic prices). Straight connects the points directly. Smooth draws a rounded curve.",
+          "line_style": "Straight connects the points directly. Stepped shows the exact price per period. Smooth draws a rounded curve.",
           "views": "Tabs of the Energy dashboard where the graph is shown.",
           "show_export": "Adds a second line when the export price is a different sensor than the import price.",
+          "show_current": "Small chips in the card header with the current import and export price.",
           "minmax": "Also draws the lowest and highest price within each period.",
           "title": "Leave empty for the default title.",
           "import_entity": "Leave empty to use the sensor from your energy settings.",
@@ -62,8 +64,8 @@
     },
     "line_style": {
       "options": {
-        "stepped": "Stepped (exact)",
         "straight": "Straight",
+        "stepped": "Stepped (exact)",
         "smooth": "Smooth"
       }
     }

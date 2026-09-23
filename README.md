@@ -3,6 +3,7 @@
 Show your **dynamic electricity price** directly in the **built-in Energy dashboard** of Home Assistant, right below the energy usage graph.
 
 - Import price and (optionally) export / feed-in price as two lines in one graph
+- Current import and export price as chips in the card header
 - Follows the Energy dashboard date picker (today, yesterday, last week, …)
 - Uses the price sensors you already configured in the Energy settings, so no extra setup is needed
 - Colours match the grid import / export colours of the Energy dashboard
@@ -41,9 +42,10 @@ Go to **Settings → Devices & services → Energy Price Graph → Configure**.
 | Option | Default | Description |
 |---|---|---|
 | Resolution | Auto | `Auto` follows the selected date range. `5 minutes` shows every price step (quarter-hour prices), but short-term data is only kept as long as your recorder keeps history (`purge_keep_days`, default 10 days). |
-| Line style | Stepped | `Stepped` shows the exact price per period (a price holds for the whole quarter or hour). `Straight` connects the points directly. `Smooth` draws a rounded curve like the standard statistics graph. |
+| Line style | Straight | `Straight` connects the points directly. `Stepped` shows the exact price per period (a price holds for the whole quarter or hour). `Smooth` draws a rounded curve like the standard statistics graph. |
 | Show on tabs | Electricity, Summary | Energy dashboard tabs where the graph is added. The Summary tab only exists when you track more than one energy type or have a grid power sensor. |
 | Show export price | On | Adds a second line when the export price is a different sensor than the import price. |
+| Show current price | On | Small chips in the card header with the current import and export price. |
 | Show min/max per period | Off | Also draws the lowest and highest price within each period. |
 | Card title | Electricity price | Leave empty for the default (translated for English, Dutch and German). |
 | Import / export price sensor | from Energy settings | Override the sensors used for the graph only. |

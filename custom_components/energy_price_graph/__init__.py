@@ -25,6 +25,7 @@ from .const import (
     CONF_LINE_STYLE,
     CONF_MINMAX,
     CONF_PERIOD,
+    CONF_SHOW_CURRENT,
     CONF_SHOW_EXPORT,
     CONF_TITLE,
     CONF_VIEWS,
@@ -48,6 +49,7 @@ def build_module_url(version: str, options: dict) -> str:
         "export": "1" if opts[CONF_SHOW_EXPORT] else "0",
         "minmax": "1" if opts[CONF_MINMAX] else "0",
         "line": opts[CONF_LINE_STYLE],
+        "current": "1" if opts[CONF_SHOW_CURRENT] else "0",
     }
     for key, param in (
         (CONF_TITLE, "title"),

@@ -35,7 +35,8 @@ async def test_setup_registers_module(hass: HomeAssistant, hass_client) -> None:
     assert q["period"] == ["auto"]
     assert q["views"] == ["electricity,overview"]
     assert q["export"] == ["1"]
-    assert q["line"] == ["stepped"]
+    assert q["line"] == ["straight"]
+    assert q["current"] == ["1"]
 
     client = await hass_client()
     resp = await client.get(urls[0])
@@ -68,6 +69,7 @@ async def test_options_flow_updates_url(hass: HomeAssistant) -> None:
         {
             "period": "5minute",
             "line_style": "smooth",
+            "show_current": True,
             "views": [],
             "show_export": False,
             "minmax": True,
@@ -80,7 +82,8 @@ async def test_options_flow_updates_url(hass: HomeAssistant) -> None:
         result["flow_id"],
         {
             "period": "5minute",
-            "line_style": "straight",
+            "line_style": "stepped",
+            "show_current": False,
             "views": ["electricity"],
             "show_export": False,
             "minmax": True,
@@ -99,5 +102,6 @@ async def test_options_flow_updates_url(hass: HomeAssistant) -> None:
     assert q["export"] == ["0"]
     assert q["minmax"] == ["1"]
     assert q["title"] == ["Prijs"]
-    assert q["line"] == ["straight"]
+    assert q["line"] == ["stepped"]
+    assert q["current"] == ["0"]
     assert q["entity"] == ["sensor.price"]

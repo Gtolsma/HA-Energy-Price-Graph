@@ -20,6 +20,7 @@
           "line_style": "Lijnstijl",
           "views": "Tonen op tabbladen",
           "show_export": "Terugleverprijs tonen",
+          "show_current": "Huidige prijs tonen",
           "minmax": "Min/max per periode tonen",
           "title": "Kaarttitel",
           "import_entity": "Inkoopprijs-sensor (overschrijven)",
@@ -29,9 +30,10 @@
         },
         "data_description": {
           "period": "Auto volgt de gekozen periode. 5-minutengegevens worden alleen bewaard zolang je recorder historie bewaart (purge_keep_days).",
-          "line_style": "Trapsgewijs toont de exacte prijs per periode (aanbevolen voor dynamische prijzen). Recht verbindt de punten direct. Vloeiend tekent een afgeronde lijn.",
+          "line_style": "Recht verbindt de punten direct. Trapsgewijs toont de exacte prijs per periode. Vloeiend tekent een afgeronde lijn.",
           "views": "Tabbladen van het Energie-dashboard waarop de grafiek verschijnt.",
           "show_export": "Voegt een tweede lijn toe als de terugleverprijs een andere sensor is dan de inkoopprijs.",
+          "show_current": "Kleine blokjes rechtsboven in de kaart met de huidige inkoop- en terugleverprijs.",
           "minmax": "Tekent ook de laagste en hoogste prijs binnen elke periode.",
           "title": "Leeg laten voor de standaardtitel.",
           "import_entity": "Leeg laten om de sensor uit je energie-instellingen te gebruiken.",
@@ -62,8 +64,8 @@
     },
     "line_style": {
       "options": {
-        "stepped": "Trapsgewijs (exact)",
         "straight": "Recht",
+        "stepped": "Trapsgewijs (exact)",
         "smooth": "Vloeiend"
       }
     }

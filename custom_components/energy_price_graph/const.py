@@ -14,6 +14,7 @@ CONF_TITLE = "title"
 CONF_SHOW_EXPORT = "show_export"
 CONF_MINMAX = "minmax"
 CONF_LINE_STYLE = "line_style"
+CONF_SHOW_CURRENT = "show_current"
 CONF_IMPORT_ENTITY = "import_entity"
 CONF_EXPORT_ENTITY = "export_entity"
 CONF_IMPORT_NAME = "import_name"
@@ -21,12 +22,13 @@ CONF_EXPORT_NAME = "export_name"
 
 PERIODS = ["auto", "5minute", "hour", "day"]
 VIEWS = ["electricity", "overview"]
-LINE_STYLES = ["stepped", "straight", "smooth"]
+LINE_STYLES = ["straight", "stepped", "smooth"]
 
 DEFAULT_OPTIONS: dict = {
     CONF_PERIOD: "auto",
     CONF_VIEWS: ["electricity", "overview"],
     CONF_SHOW_EXPORT: True,
     CONF_MINMAX: False,
-    CONF_LINE_STYLE: "stepped",
+    CONF_LINE_STYLE: "straight",
+    CONF_SHOW_CURRENT: True,
 }

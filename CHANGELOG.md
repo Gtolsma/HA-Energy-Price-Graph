@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-09-23
+
+### Added
+
+- Current import and export price as small chips in the header of the price graph (like the kWh total on the energy usage graph). Can be turned off with the new *Show current price* option.
+
+### Changed
+
+- Default line style is now *Straight*. Installations that never changed the line style switch from *Stepped* to *Straight*; pick *Stepped* under Configure to keep it.
+
 ## [1.1.0] - 2026-09-23
 
 ### Added
@@ -29,6 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - English, Dutch and German default labels; English and Dutch UI translations.
 - Integration icon (`brand/`), shown in Home Assistant 2026.3 and newer.
 
-[Unreleased]: https://github.com/Gtolsma/HA-Energy-Price-Graph/compare/1.1.0...HEAD
+[Unreleased]: https://github.com/Gtolsma/HA-Energy-Price-Graph/compare/1.2.0...HEAD
+[1.2.0]: https://github.com/Gtolsma/HA-Energy-Price-Graph/compare/1.1.0...1.2.0
 [1.1.0]: https://github.com/Gtolsma/HA-Energy-Price-Graph/compare/1.0.0...1.1.0
 [1.0.0]: https://github.com/Gtolsma/HA-Energy-Price-Graph/releases/tag/1.0.0
