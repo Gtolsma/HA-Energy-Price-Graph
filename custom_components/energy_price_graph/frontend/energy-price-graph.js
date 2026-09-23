@@ -157,7 +157,7 @@ function averageCard({ imp, exp }, collectionKey, L) {
     title: L.avgTitle,
     collection_key: collectionKey,
     import_entity: imp || null,
-    export_entity: exp && exp !== imp ? exp : null,
+    export_entity: exp || null,
     labels: L,
     colors: {
       import: themeColor("--energy-grid-consumption-color", "#488fc2"),
@@ -300,18 +300,21 @@ function patchStrategy(tag, ctor) {
     const view = await original.call(this, config, hass, ...rest);
     try {
       await loadOptions(hass);
-      if (!OPT.views.includes(target.key)) return view;
       const found = await findPriceEntities(hass);
-      if (!found.imp && !found.exp) {
-        console.info(TAG, "no price sensor found, nothing added");
-        return view;
-      }
       const key = config?.collection_key || "energy_dashboard";
       const L = labels(hass);
-      target.inject(view, priceCard(found, key, L));
+      // The average card also works without price sensors (it then shows a
+      // fixed price, if configured, as the market value), so it does not
+      // depend on the graph being shown.
       if (target.key === "electricity" && OPT.average) {
         injectAverage(view, averageCard(found, key, L));
       }
+      if (!OPT.views.includes(target.key)) return view;
+      if (!found.imp && !found.exp) {
+        console.info(TAG, "no price sensor found, no price graph added");
+        return view;
+      }
+      target.inject(view, priceCard(found, key, L));
     } catch (e) {
       console.error(TAG, "injection failed, dashboard left unchanged", e);
     }
@@ -581,7 +584,17 @@ function sumChange(stats) {
 
 /** Grid import/export energy and cost statistic ids from the energy prefs. */
 function gridStatIds(prefs, info) {
-  const out = { from: [], to: [] };
+  const out = { from: [], to: [], fixedImport: null, fixedExport: null };
+  const fixed = (key, v) => {
+    if (typeof v === "number" && out[key] == null) out[key] = v;
+  };
+  for (const src of prefs?.energy_sources || []) {
+    if (src.type !== "grid") continue;
+    fixed("fixedImport", src.number_energy_price);
+    fixed("fixedExport", src.number_energy_price_export);
+    for (const f of src.flow_from || []) fixed("fixedImport", f.number_energy_price);
+    for (const f of src.flow_to || []) fixed("fixedExport", f.number_energy_price);
+  }
   const cost = info?.cost_sensors || {};
   for (const src of prefs?.energy_sources || []) {
     if (src.type !== "grid") continue;
@@ -603,20 +616,33 @@ function gridStatIds(prefs, info) {
   return out;
 }
 
+/**
+ * Money per kWh over the period. Only periods in which both the energy and
+ * the cost statistic have a value, and energy actually flowed, are counted,
+ * so a sensor that was added or repaired halfway through the period does not
+ * skew the result.
+ */
 function paidAverage(data, flows) {
   let energy = 0;
   let money = 0;
-  let ok = false;
   for (const f of flows) {
     if (!f.cost) continue;
-    const e = sumChange(data?.stats?.[f.energy]);
-    const c = sumChange(data?.stats?.[f.cost]);
-    if (e == null || c == null) continue;
-    energy += Math.abs(e);
-    money += Math.abs(c);
-    ok = true;
+    const energyRows = data?.stats?.[f.energy];
+    const costRows = data?.stats?.[f.cost];
+    if (!Array.isArray(energyRows) || !Array.isArray(costRows)) continue;
+    const costByStart = new Map();
+    for (const r of costRows) {
+      if (typeof r?.change === "number") costByStart.set(r.start, r.change);
+    }
+    for (const r of energyRows) {
+      const e = r?.change;
+      const c = costByStart.get(r?.start);
+      if (typeof e !== "number" || e <= 0 || typeof c !== "number") continue;
+      energy += e;
+      money += Math.abs(c);
+    }
   }
-  return ok && energy > 0 ? money / energy : null;
+  return energy > 0 ? money / energy : null;
 }
 
 function marketPeriod(start, end) {
@@ -647,10 +673,14 @@ async function marketAverages(hass, start, end, ids) {
 
 class EnergyPriceAverageCard extends HTMLElement {
   setConfig(config) {
+    // Lovelace may call setConfig again on an existing card (for example when
+    // a view is rebuilt). Keep the last data and recalculate instead of
+    // falling back to the loading state, which would otherwise stay until
+    // the energy data changes again.
     this._config = config;
-    this._result = null;
     if (!this.shadowRoot) this.attachShadow({ mode: "open" });
     this._render();
+    if (this._data && this._hass) this._update(this._data);
   }
 
   set hass(hass) {
@@ -670,6 +700,7 @@ class EnergyPriceAverageCard extends HTMLElement {
     this._unsub?.();
     this._unsub = undefined;
     clearTimeout(this._retry);
+    clearTimeout(this._retryMarket);
   }
 
   getCardSize() {
@@ -694,29 +725,45 @@ class EnergyPriceAverageCard extends HTMLElement {
   }
 
   async _update(data) {
+    this._data = data;
+    clearTimeout(this._retryMarket);
     const run = (this._run = (this._run || 0) + 1);
-    const c = this._config;
-    const flows = gridStatIds(data?.prefs, data?.info);
-    const result = {
-      importPaid: paidAverage(data, flows.from),
-      exportPaid: flows.to.length ? paidAverage(data, flows.to) : null,
-      hasExport: !!c.export_entity || flows.to.length > 0,
-      importMarket: null,
-      exportMarket: null,
-    };
+    const c = this._config || {};
+    let result;
+    let marketFailed = false;
     try {
-      const market = await marketAverages(this._hass, data.start, data.end, [
-        c.import_entity,
-        c.export_entity,
-      ]);
-      result.importMarket = market[c.import_entity] ?? null;
-      result.exportMarket = market[c.export_entity] ?? null;
+      const flows = gridStatIds(data?.prefs, data?.info);
+      result = {
+        importPaid: paidAverage(data, flows.from),
+        exportPaid: flows.to.length ? paidAverage(data, flows.to) : null,
+        hasExport: !!c.export_entity || flows.to.length > 0,
+        importMarket: flows.fixedImport,
+        exportMarket: flows.fixedExport,
+      };
+      if (data?.start && (c.import_entity || c.export_entity)) {
+        try {
+          const market = await marketAverages(this._hass, data.start, data.end, [
+            c.import_entity,
+            c.export_entity,
+          ]);
+          if (c.import_entity) result.importMarket = market[c.import_entity] ?? result.importMarket;
+          if (c.export_entity) result.exportMarket = market[c.export_entity] ?? result.exportMarket;
+        } catch (e) {
+          marketFailed = true;
+          console.warn(TAG, "could not load market average, retrying", e);
+        }
+      }
     } catch (e) {
-      console.warn(TAG, "could not load market average", e);
+      console.error(TAG, "could not calculate average price", e);
+      result = { importPaid: null, exportPaid: null, hasExport: false, importMarket: null, exportMarket: null };
     }
     if (run !== this._run) return; // a newer period was selected meanwhile
     this._result = result;
     this._render();
+    // The recorder may still be starting (e.g. right after a restart): retry.
+    if (marketFailed && this.isConnected) {
+      this._retryMarket = setTimeout(() => this._data && this._update(this._data), 15000);
+    }
   }
 
   _fmt(value) {

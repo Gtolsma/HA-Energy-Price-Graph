@@ -55,7 +55,7 @@ Go to **Settings → Devices & services → Energy Price Graph → Configure**.
 | Show on tabs | Electricity, Summary | Energy dashboard tabs where the graph is added. The Summary tab only exists when you track more than one energy type or have a grid power sensor. |
 | Show export price | On | Adds a second line when the export price is a different sensor than the import price. |
 | Show current price | On | Small chips in the card header with the current import and export price. |
-| Show average price | On | Card below *Energy distribution* on the Electricity tab. **You**: what you actually paid (import) or received (export) per kWh in the selected period, calculated as cost ÷ energy from the Energy dashboard statistics. **Market**: the plain average of the price sensor over the same period. The percentage shows how you did compared to the market (green is better). |
+| Show average price | On | Card below *Energy distribution* on the Electricity tab. **You**: what you actually paid (import) or received (export) per kWh in the selected period, calculated as cost ÷ energy from the Energy dashboard statistics. **Market**: the plain average of the price sensor over the same period (or your fixed price, if you use one). Only periods in which both energy and cost were recorded are counted. The percentage shows how you did compared to the market (green is better). |
 | Show min/max per period | Off | Also draws the lowest and highest price within each period. |
 | Card title | Electricity price | Leave empty for the default (translated for English, Dutch and German). |
 | Import / export price sensor | from Energy settings | Override the sensors used for the graph only. |

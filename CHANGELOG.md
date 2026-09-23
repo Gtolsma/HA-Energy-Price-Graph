@@ -5,6 +5,19 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.1] - 2026-09-23
+
+### Fixed
+
+- Average price card could stay empty until a hard browser refresh when Home Assistant rebuilt the view; it now keeps and recalculates its data.
+- Average price card retries loading the market average when the recorder is not ready yet (for example right after a restart).
+- Average price is now calculated only over periods in which both energy and cost were recorded, so a sensor added or repaired halfway through a day no longer produces an impossible price.
+- Market average for export is also shown when import and export use the same price sensor.
+
+### Changed
+
+- The average price card no longer depends on the price graph being shown on the Electricity tab; it also works without price sensors and then shows a fixed price, if configured, as the market value.
+
 ## [1.4.0] - 2026-09-23
 
 ### Added
@@ -61,6 +74,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - English, Dutch and German default labels; English and Dutch UI translations.
 - Integration icon (`brand/`), shown in Home Assistant 2026.3 and newer.
 
+[1.4.1]: https://github.com/Gtolsma/HA-Energy-Price-Graph/compare/1.4.0...1.4.1
 [1.4.0]: https://github.com/Gtolsma/HA-Energy-Price-Graph/compare/1.3.0...1.4.0
 [1.3.0]: https://github.com/Gtolsma/HA-Energy-Price-Graph/compare/1.2.2...1.3.0
 [1.2.2]: https://github.com/Gtolsma/HA-Energy-Price-Graph/compare/1.2.1...1.2.2
