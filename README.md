@@ -12,7 +12,7 @@ Show your **dynamic electricity price** directly in the **built-in Energy dashbo
 
 ## Requirements
 
-- Home Assistant 2025.8 or newer (tested on 2026.x)
+- Home Assistant 2025.8 or newer (tested on 2026.x); the integration icon is shown from 2026.3
 - A price sensor configured in **Settings → Dashboards → Energy → Electricity grid**:
   - *Costs*: "Use an entity with current price"
   - *Compensation* (optional): "Use an entity with current price"

@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Import and export price as separate lines, read automatically from the Energy settings.
 - Options flow: resolution, tabs, export line, min/max, title, sensor overrides and line names.
 - English, Dutch and German default labels; English and Dutch UI translations.
+- Integration icon (`brand/`), shown in Home Assistant 2026.3 and newer.
 
 [Unreleased]: https://github.com/GITHUB_USER/HA-Energy-Price-Graph/compare/v1.0.0...HEAD
 [1.0.0]: https://github.com/GITHUB_USER/HA-Energy-Price-Graph/releases/tag/v1.0.0
