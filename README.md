@@ -2,6 +2,8 @@
 
 Show your **dynamic electricity price** directly in the **built-in Energy dashboard** of Home Assistant, right below the energy usage graph.
 
+![Electricity price graph on the Energy dashboard, with the current import and export price in the header](https://raw.githubusercontent.com/Gtolsma/HA-Energy-Price-Graph/main/docs/images/price-graph.png)
+
 - Import price and (optionally) export / feed-in price as two lines in one graph
 - Current import and export price as chips in the card header
 - Average price card on the Electricity tab: what you actually paid / received per kWh next to the average market price
@@ -9,6 +11,12 @@ Show your **dynamic electricity price** directly in the **built-in Energy dashbo
 - Uses the price sensors you already configured in the Energy settings, so no extra setup is needed
 - Colours match the grid import / export colours of the Energy dashboard
 - Configurable from the UI: resolution, line style, tabs, min/max, title, sensor overrides
+
+### Average price
+
+On the Electricity tab, below *Energy distribution*, a card compares what you actually paid for import and received for export per kWh with the average market price for the selected period.
+
+<img src="https://raw.githubusercontent.com/Gtolsma/HA-Energy-Price-Graph/main/docs/images/average-price.png" alt="Average price card: your average import and export price next to the market average" width="400">
 
 > Home Assistant has no official way to add cards to the built-in Energy dashboard. This integration fills that gap until the feature exists in Home Assistant itself.
 
