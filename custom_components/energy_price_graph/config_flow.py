@@ -12,6 +12,7 @@ from homeassistant.config_entries import (
     OptionsFlowWithReload,
 )
 from homeassistant.core import callback
+from homeassistant.data_entry_flow import section
 from homeassistant.helpers.selector import (
     BooleanSelector,
     EntitySelector,
@@ -25,6 +26,10 @@ from homeassistant.helpers.selector import (
 from .const import (
     CONF_EXPORT_ENTITY,
     CONF_EXPORT_NAME,
+    CONF_FORECAST_EXPORT_ENTITY,
+    CONF_FORECAST_GAS_ENTITY,
+    CONF_FORECAST_IMPORT_ENTITY,
+    CONF_GAS_ENTITY,
     CONF_IMPORT_ENTITY,
     CONF_IMPORT_NAME,
     CONF_LINE_STYLE,
@@ -33,54 +38,127 @@ from .const import (
     CONF_SHOW_AVERAGE,
     CONF_SHOW_CURRENT,
     CONF_SHOW_EXPORT,
+    CONF_SHOW_GAS,
+    CONF_SHOW_PRICE_COLORS,
+    CONF_SHOW_SAVINGS,
     CONF_TITLE,
     CONF_VIEWS,
     DEFAULT_OPTIONS,
     DOMAIN,
     LINE_STYLES,
     PERIODS,
+    SECTION_ADVANCED,
+    SECTION_AVERAGE,
+    SECTION_CURRENT,
+    SECTION_FORECAST,
+    SECTION_GAS,
+    SECTION_GRAPH,
+    SECTIONS,
     VIEWS,
 )
 
+SENSOR = EntitySelector(EntitySelectorConfig(domain="sensor"))
+
 OPTIONS_SCHEMA = vol.Schema(
     {
-        vol.Required(CONF_PERIOD): SelectSelector(
-            SelectSelectorConfig(
-                options=PERIODS,
-                translation_key=CONF_PERIOD,
-                mode=SelectSelectorMode.DROPDOWN,
-            )
+        vol.Required(SECTION_GRAPH): section(
+            vol.Schema(
+                {
+                    vol.Required(CONF_PERIOD): SelectSelector(
+                        SelectSelectorConfig(
+                            options=PERIODS,
+                            translation_key=CONF_PERIOD,
+                            mode=SelectSelectorMode.DROPDOWN,
+                        )
+                    ),
+                    vol.Required(CONF_LINE_STYLE): SelectSelector(
+                        SelectSelectorConfig(
+                            options=LINE_STYLES,
+                            translation_key=CONF_LINE_STYLE,
+                            mode=SelectSelectorMode.DROPDOWN,
+                        )
+                    ),
+                    vol.Required(CONF_VIEWS): SelectSelector(
+                        SelectSelectorConfig(
+                            options=VIEWS,
+                            translation_key=CONF_VIEWS,
+                            multiple=True,
+                            mode=SelectSelectorMode.LIST,
+                        )
+                    ),
+                    vol.Required(CONF_SHOW_EXPORT): BooleanSelector(),
+                    vol.Required(CONF_MINMAX): BooleanSelector(),
+                }
+            ),
+            {"collapsed": False},
         ),
-        vol.Required(CONF_LINE_STYLE): SelectSelector(
-            SelectSelectorConfig(
-                options=LINE_STYLES,
-                translation_key=CONF_LINE_STYLE,
-                mode=SelectSelectorMode.DROPDOWN,
-            )
+        vol.Required(SECTION_CURRENT): section(
+            vol.Schema(
+                {
+                    vol.Required(CONF_SHOW_CURRENT): BooleanSelector(),
+                    vol.Required(CONF_SHOW_PRICE_COLORS): BooleanSelector(),
+                }
+            ),
+            {"collapsed": False},
         ),
-        vol.Required(CONF_VIEWS): SelectSelector(
-            SelectSelectorConfig(
-                options=VIEWS,
-                translation_key=CONF_VIEWS,
-                multiple=True,
-                mode=SelectSelectorMode.LIST,
-            )
+        vol.Required(SECTION_AVERAGE): section(
+            vol.Schema(
+                {
+                    vol.Required(CONF_SHOW_AVERAGE): BooleanSelector(),
+                    vol.Required(CONF_SHOW_SAVINGS): BooleanSelector(),
+                }
+            ),
+            {"collapsed": False},
         ),
-        vol.Required(CONF_SHOW_EXPORT): BooleanSelector(),
-        vol.Required(CONF_SHOW_CURRENT): BooleanSelector(),
-        vol.Required(CONF_SHOW_AVERAGE): BooleanSelector(),
-        vol.Required(CONF_MINMAX): BooleanSelector(),
-        vol.Optional(CONF_TITLE): TextSelector(),
-        vol.Optional(CONF_IMPORT_ENTITY): EntitySelector(
-            EntitySelectorConfig(domain="sensor")
+        vol.Required(SECTION_GAS): section(
+            vol.Schema({vol.Required(CONF_SHOW_GAS): BooleanSelector()}),
+            {"collapsed": False},
         ),
-        vol.Optional(CONF_EXPORT_ENTITY): EntitySelector(
-            EntitySelectorConfig(domain="sensor")
+        vol.Required(SECTION_FORECAST): section(
+            vol.Schema(
+                {
+                    vol.Optional(CONF_FORECAST_IMPORT_ENTITY): SENSOR,
+                    vol.Optional(CONF_FORECAST_EXPORT_ENTITY): SENSOR,
+                    vol.Optional(CONF_FORECAST_GAS_ENTITY): SENSOR,
+                }
+            ),
+            {"collapsed": True},
         ),
-        vol.Optional(CONF_IMPORT_NAME): TextSelector(),
-        vol.Optional(CONF_EXPORT_NAME): TextSelector(),
+        vol.Required(SECTION_ADVANCED): section(
+            vol.Schema(
+                {
+                    vol.Optional(CONF_TITLE): TextSelector(),
+                    vol.Optional(CONF_IMPORT_ENTITY): SENSOR,
+                    vol.Optional(CONF_EXPORT_ENTITY): SENSOR,
+                    vol.Optional(CONF_GAS_ENTITY): SENSOR,
+                    vol.Optional(CONF_IMPORT_NAME): TextSelector(),
+                    vol.Optional(CONF_EXPORT_NAME): TextSelector(),
+                }
+            ),
+            {"collapsed": True},
+        ),
     }
 )
+
+
+def flatten(user_input: dict[str, Any]) -> dict[str, Any]:
+    """Move the values of the form sections to the top level."""
+    flat = {k: v for k, v in user_input.items() if k not in SECTIONS}
+    for name in SECTIONS:
+        flat.update(user_input.get(name) or {})
+    return flat
+
+
+def nest(options: dict[str, Any]) -> dict[str, Any]:
+    """Group flat options into the form sections (for suggested values)."""
+    nested = {
+        k: v
+        for k, v in options.items()
+        if not any(k in keys for keys in SECTIONS.values())
+    }
+    for name, keys in SECTIONS.items():
+        nested[name] = {k: options[k] for k in keys if k in options}
+    return nested
 
 
 class EnergyPriceGraphConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -116,16 +194,19 @@ class EnergyPriceGraphOptionsFlow(OptionsFlowWithReload):
         """Manage the options."""
         errors: dict[str, str] = {}
         if user_input is not None:
-            if not user_input.get(CONF_VIEWS):
-                errors[CONF_VIEWS] = "no_views"
+            flat = flatten(user_input)
+            if not flat.get(CONF_VIEWS):
+                errors["base"] = "no_views"
             else:
-                return self.async_create_entry(data=user_input)
+                return self.async_create_entry(data=flat)
 
         suggested = {**DEFAULT_OPTIONS, **self.config_entry.options}
         if user_input is not None:
-            suggested.update(user_input)
+            suggested.update(flatten(user_input))
         return self.async_show_form(
             step_id="init",
-            data_schema=self.add_suggested_values_to_schema(OPTIONS_SCHEMA, suggested),
+            data_schema=self.add_suggested_values_to_schema(
+                OPTIONS_SCHEMA, nest(suggested)
+            ),
             errors=errors,
         )
