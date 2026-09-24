@@ -51,11 +51,11 @@
             "description": "Card below Energy distribution on the Electricity tab.",
             "data": {
               "show_average": "Show average price",
-              "show_savings": "Show savings"
+              "show_savings": "Show result in euros"
             },
             "data_description": {
               "show_average": "Card below Energy distribution on the Electricity tab with your average import and export price for the selected period, next to the average market price.",
-              "show_savings": "Adds how much you saved (or paid extra) compared to the market average to the average price card."
+              "show_savings": "Shows in euros how much better or worse you did than the market average, for import and export separately and in total."
             }
           },
           "gas": {
