@@ -51,11 +51,11 @@
             "description": "Kaart onder Energieverdeling op het tabblad Elektriciteit.",
             "data": {
               "show_average": "Gemiddelde prijs tonen",
-              "show_savings": "Besparing tonen"
+              "show_savings": "Resultaat in euro's tonen"
             },
             "data_description": {
               "show_average": "Kaart onder Energieverdeling op het tabblad Elektriciteit met je gemiddelde inkoop- en terugleverprijs voor de gekozen periode, naast de gemiddelde marktprijs.",
-              "show_savings": "Voegt aan de kaart met de gemiddelde prijs toe hoeveel je bespaarde (of meer betaalde) ten opzichte van het marktgemiddelde."
+              "show_savings": "Toont in euro's hoeveel beter of slechter je het deed dan het marktgemiddelde, voor inkoop en teruglevering apart en in totaal."
             }
           },
           "gas": {
