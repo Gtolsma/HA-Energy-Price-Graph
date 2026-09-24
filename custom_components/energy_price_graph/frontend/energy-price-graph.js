@@ -35,7 +35,14 @@ const OPT = {
     ? params.get("line")
     : "straight",
   current: params.get("current") !== "0",
+  priceColors: params.get("colors") !== "0",
   average: params.get("average") !== "0",
+  savings: params.get("savings") !== "0",
+  gas: params.get("gas") !== "0",
+  gasEntity: params.get("gas_entity") || null,
+  forecastImport: params.get("forecast_import") || null,
+  forecastExport: params.get("forecast_export") || null,
+  forecastGas: params.get("forecast_gas") || null,
 };
 
 // Marker key on our card config. The statistics-graph card ignores unknown
@@ -43,8 +50,14 @@ const OPT = {
 const LINE_KEY = "energy_price_graph_line";
 // Marker key with the current-price chips to show in the card header.
 const NOW_KEY = "energy_price_graph_now";
+// Marker key: pick the resolution from the selected date range ("auto_fine").
+const FINE_KEY = "energy_price_graph_fine";
+// Marker key with the forecast series to draw as dashed lines.
+const FORECAST_KEY = "energy_price_graph_forecast";
 
 const TAG = "[energy-price-graph]";
+// Version of this module, from the ?v= parameter the loader adds.
+const MODULE_VERSION = params.get("v");
 const MARK = "__energyPriceInjected";
 const LINE_STYLES = ["smooth", "straight", "stepped"];
 
@@ -56,23 +69,50 @@ const LINE_STYLES = ["smooth", "straight", "stepped"];
 async function loadOptions(hass) {
   let o;
   try {
-    o = (await hass.callWS({ type: "energy_price_graph/options" }))?.options;
+    const res = await hass.callWS({ type: "energy_price_graph/options" });
+    reloadIfOutdated(res?.version);
+    o = res?.options;
   } catch (e) {
     return; // integration not loaded (e.g. script used manually): keep URL options
   }
   if (!o) return;
-  OPT.period = o.period || "auto";
+  OPT.period = o.period || "auto_fine";
   OPT.views = Array.isArray(o.views) && o.views.length ? o.views : OPT.views;
   OPT.showExport = o.show_export !== false;
   OPT.minmax = !!o.minmax;
   OPT.line = LINE_STYLES.includes(o.line_style) ? o.line_style : "straight";
   OPT.current = o.show_current !== false;
+  OPT.priceColors = o.show_price_colors !== false;
   OPT.average = o.show_average !== false;
+  OPT.savings = o.show_savings !== false;
+  OPT.gas = o.show_gas !== false;
+  OPT.gasEntity = o.gas_entity || null;
+  OPT.forecastImport = o.forecast_import_entity || null;
+  OPT.forecastExport = o.forecast_export_entity || null;
+  OPT.forecastGas = o.forecast_gas_entity || null;
   OPT.title = o.title || null;
   OPT.entity = o.import_entity || null;
   OPT.exportEntity = o.export_entity || null;
   OPT.importName = o.import_name || null;
   OPT.exportName = o.export_name || null;
+}
+
+/**
+ * After an update of the integration an open browser tab still runs the old
+ * module. When the installed version differs from the one running here,
+ * reload the page once so the loader imports the new module.
+ */
+function reloadIfOutdated(serverVersion) {
+  if (!serverVersion || !MODULE_VERSION || serverVersion === MODULE_VERSION) return;
+  const key = `energy-price-graph-reloaded-${serverVersion}`;
+  try {
+    if (sessionStorage.getItem(key)) return; // reloaded once already: avoid a loop
+    sessionStorage.setItem(key, "1");
+  } catch (e) {
+    return; // no storage: do not risk a reload loop
+  }
+  console.info(TAG, `updated from ${MODULE_VERSION} to ${serverVersion}, reloading`);
+  location.reload();
 }
 
 /**
@@ -83,10 +123,12 @@ async function loadOptions(hass) {
 async function findPriceEntities(hass) {
   let imp = OPT.entity;
   let exp = OPT.exportEntity;
-  if (!imp || (!exp && OPT.showExport)) {
+  let gas = OPT.gasEntity;
+  if (!imp || (!exp && OPT.showExport) || (!gas && OPT.gas)) {
     try {
       const prefs = await hass.callWS({ type: "energy/get_prefs" });
       for (const src of prefs?.energy_sources || []) {
+        if (src.type === "gas") gas = gas || src.entity_energy_price || null;
         if (src.type !== "grid") continue;
         // current schema
         imp = imp || src.entity_energy_price || null;
@@ -100,7 +142,7 @@ async function findPriceEntities(hass) {
     }
   }
   if (!OPT.showExport) exp = null;
-  return { imp, exp };
+  return { imp, exp, gas };
 }
 
 /** Same colours as grid import / export on the Energy dashboard. */
@@ -115,18 +157,27 @@ function themeColor(varName, fallback) {
 const LABELS = {
   en: {
     title: "Electricity price", imp: "Import", exp: "Export", now: "Current price",
+    gasTitle: "Gas price", gas: "Gas", forecast: "forecast", todayAvg: "average today",
+    saved: "Saved vs market", extra: "Paid extra vs market",
+    savingsHelp: "(market price − your price) × energy, for import and export together",
     avgTitle: "Average price", you: "You", market: "Market",
     youHelp: "What you actually paid or received per kWh in the selected period (cost ÷ energy)",
     marketHelp: "Average market price in the selected period",
   },
   nl: {
     title: "Stroomprijs", imp: "Inkoop", exp: "Teruglevering", now: "Huidige prijs",
+    gasTitle: "Gasprijs", gas: "Gas", forecast: "verwacht", todayAvg: "gemiddelde vandaag",
+    saved: "Bespaard t.o.v. markt", extra: "Meer betaald t.o.v. markt",
+    savingsHelp: "(marktprijs − jouw prijs) × energie, voor inkoop en teruglevering samen",
     avgTitle: "Gemiddelde prijs", you: "Jij", market: "Markt",
     youHelp: "Wat je in de gekozen periode echt betaalde of ontving per kWh (kosten ÷ energie)",
     marketHelp: "Gemiddelde marktprijs in de gekozen periode",
   },
   de: {
     title: "Strompreis", imp: "Bezug", exp: "Einspeisung", now: "Aktueller Preis",
+    gasTitle: "Gaspreis", gas: "Gas", forecast: "Prognose", todayAvg: "Durchschnitt heute",
+    saved: "Ersparnis ggü. Markt", extra: "Mehrkosten ggü. Markt",
+    savingsHelp: "(Marktpreis − dein Preis) × Energie, Bezug und Einspeisung zusammen",
     avgTitle: "Durchschnittspreis", you: "Du", market: "Markt",
     youHelp: "Was du im gewählten Zeitraum pro kWh tatsächlich bezahlt oder erhalten hast (Kosten ÷ Energie)",
     marketHelp: "Durchschnittlicher Marktpreis im gewählten Zeitraum",
@@ -141,6 +192,13 @@ function labels(hass) {
     imp: OPT.importName || l.imp,
     exp: OPT.exportName || l.exp,
     now: l.now,
+    gasTitle: l.gasTitle,
+    gas: l.gas,
+    forecast: l.forecast,
+    todayAvg: l.todayAvg,
+    saved: l.saved,
+    extra: l.extra,
+    savingsHelp: l.savingsHelp,
     avgTitle: l.avgTitle,
     you: l.you,
     market: l.market,
@@ -159,6 +217,7 @@ function averageCard({ imp, exp }, collectionKey, L) {
     import_entity: imp || null,
     export_entity: exp || null,
     labels: L,
+    show_savings: OPT.savings,
     colors: {
       import: themeColor("--energy-grid-consumption-color", "#488fc2"),
       export: themeColor("--energy-grid-return-color", "#8353d1"),
@@ -198,32 +257,19 @@ function injectAverage(view, card) {
   if (first) first.cards = [card, ...(first.cards || [])];
 }
 
-function priceCard({ imp, exp }, collectionKey, L) {
-  const entities = [];
-  const sameEntity = imp && exp && imp === exp;
-  if (imp) {
-    entities.push({
-      entity: imp,
-      name: sameEntity ? L.title : L.imp,
-      color: themeColor("--energy-grid-consumption-color", "#488fc2"),
-    });
-  }
-  if (exp && !sameEntity) {
-    entities.push({
-      entity: exp,
-      name: L.exp,
-      color: themeColor("--energy-grid-return-color", "#8353d1"),
-    });
-  }
+/** Settings shared by the electricity and gas price graphs. */
+function graphCard(title, entities, forecasts, collectionKey, L) {
+  const fine = OPT.period === "auto_fine";
   return {
     type: "statistics-graph",
-    title: L.title,
-    entities,
+    title,
+    entities: entities.map(({ entity, name, color }) => ({ entity, name, color })),
     stat_types: OPT.minmax ? ["mean", "min", "max"] : ["mean"],
     chart_type: "line",
     // "auto" is the card's default; leaving the key out keeps older frontends
-    // (which do not know "auto") working.
-    ...(OPT.period !== "auto" && { period: OPT.period }),
+    // (which do not know "auto") working. "auto_fine" starts at 5 minutes and
+    // is adjusted to the selected date range (see handleFinePeriod).
+    ...(fine ? { period: "5minute", [FINE_KEY]: true } : OPT.period !== "auto" && { period: OPT.period }),
     energy_date_selection: true,
     collection_key: collectionKey,
     // A legend is only useful with more than one line.
@@ -234,11 +280,46 @@ function priceCard({ imp, exp }, collectionKey, L) {
         entity: e.entity,
         name: e.name,
         color: e.color,
+        better: e.better,
+        colored: OPT.priceColors,
+        forecast: forecasts.find((f) => f.reference === e.entity)?.entity || null,
         tooltip: `${L.now}: ${e.name}`,
+        todayAvgLabel: L.todayAvg,
       })),
     }),
+    ...(forecasts.length && { [FORECAST_KEY]: forecasts }),
     grid_options: { columns: "full" },
   };
+}
+
+function priceCard({ imp, exp }, collectionKey, L) {
+  const entities = [];
+  const forecasts = [];
+  const sameEntity = imp && exp && imp === exp;
+  const impColor = themeColor("--energy-grid-consumption-color", "#488fc2");
+  const expColor = themeColor("--energy-grid-return-color", "#8353d1");
+  if (imp) {
+    const name = sameEntity ? L.title : L.imp;
+    entities.push({ entity: imp, name, color: impColor, better: "low" });
+    if (OPT.forecastImport) {
+      forecasts.push({ entity: OPT.forecastImport, reference: imp, name: `${name} (${L.forecast})`, color: impColor });
+    }
+  }
+  if (exp && !sameEntity) {
+    entities.push({ entity: exp, name: L.exp, color: expColor, better: "high" });
+    if (OPT.forecastExport) {
+      forecasts.push({ entity: OPT.forecastExport, reference: exp, name: `${L.exp} (${L.forecast})`, color: expColor });
+    }
+  }
+  return graphCard(L.title, entities, forecasts, collectionKey, L);
+}
+
+function gasCard(gas, collectionKey, L) {
+  const color = themeColor("--energy-gas-color", "#8e021b");
+  const forecasts = OPT.forecastGas
+    ? [{ entity: OPT.forecastGas, reference: gas, name: `${L.gas} (${L.forecast})`, color }]
+    : [];
+  return graphCard(L.gasTitle, [{ entity: gas, name: L.gas, color, better: "low" }], forecasts, collectionKey, L);
 }
 
 /**
@@ -285,9 +366,39 @@ function injectOverview(view, card) {
   return true;
 }
 
+/**
+ * Gas tab: price graph below the gas consumption graph and its totals table,
+ * which share a row (2/3 + 1/3), so that row stays intact.
+ */
+function injectGas(view, card) {
+  const after = (cards) => {
+    let idx = -1;
+    cards.forEach((c, i) => {
+      if (c.type === "energy-gas-graph" || c.type === "energy-sources-table") idx = i;
+    });
+    return idx;
+  };
+  if (Array.isArray(view.cards)) {
+    view.cards.splice(after(view.cards) + 1, 0, card);
+    return true;
+  }
+  for (const section of view.sections || []) {
+    const cards = section.cards || [];
+    const idx = after(cards);
+    if (idx !== -1) {
+      cards.splice(idx + 1, 0, card);
+      return true;
+    }
+  }
+  const first = (view.sections || [])[0];
+  if (first) first.cards = [...(first.cards || []), card];
+  return !!first;
+}
+
 const TARGETS = {
   "energy-view-strategy": { key: "electricity", inject: injectElectricity },
   "energy-overview-view-strategy": { key: "overview", inject: injectOverview },
+  "gas-view-strategy": { key: "gas", inject: injectGas },
 };
 
 function patchStrategy(tag, ctor) {
@@ -303,6 +414,10 @@ function patchStrategy(tag, ctor) {
       const found = await findPriceEntities(hass);
       const key = config?.collection_key || "energy_dashboard";
       const L = labels(hass);
+      if (target.key === "gas") {
+        if (OPT.gas && found.gas) target.inject(view, gasCard(found.gas, key, L));
+        return view;
+      }
       // The average card also works without price sensors (it then shows a
       // fixed price, if configured, as the market value), so it does not
       // depend on the graph being shown.
@@ -420,6 +535,96 @@ function styleSeries(data, style) {
   );
 }
 
+/* ------------------------------------------------------------------------ *
+ * Forecast (upcoming prices) as dashed lines
+ *
+ * Price integrations publish upcoming prices in different attribute formats,
+ * e.g. Nord Pool (raw_today / raw_tomorrow: {start, end, value}), ENTSO-e
+ * (prices: {time, price}), Zonneplan (forecast: {datetime, electricity_price})
+ * or Frank Energie (prices: {from, till, price}). We look for lists of objects
+ * with a time and a numeric price and scale the values to the unit of the
+ * price sensor.
+ * ------------------------------------------------------------------------ */
+
+const TIME_KEYS = ["start", "from", "time", "datetime", "date_time", "start_time", "startsAt", "starts_at", "valid_from", "date"];
+const VALUE_KEYS = ["value", "price", "total", "electricity_price", "price_eur", "marketPrice", "market_price", "price_incl_vat", "energy_price", "gas_price"];
+
+function forecastPoints(stateObj) {
+  const points = new Map();
+  const visit = (value, depth) => {
+    if (depth > 2 || !value) return;
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        if (!item || typeof item !== "object" || Array.isArray(item)) continue;
+        const tKey = TIME_KEYS.find((k) => item[k] != null);
+        if (!tKey) continue;
+        const ts = Date.parse(item[tKey]);
+        if (!Number.isFinite(ts)) continue;
+        let vKey = VALUE_KEYS.find((k) => typeof item[k] === "number");
+        if (!vKey) {
+          vKey = Object.keys(item).find(
+            (k) => !TIME_KEYS.includes(k) && !["end", "till", "to", "end_time"].includes(k) && typeof item[k] === "number"
+          );
+        }
+        if (vKey) points.set(ts, item[vKey]);
+      }
+    } else if (typeof value === "object") {
+      for (const v of Object.values(value)) visit(v, depth + 1);
+    }
+  };
+  for (const v of Object.values(stateObj?.attributes || {})) visit(v, 0);
+  return [...points.entries()].sort((a, b) => a[0] - b[0]);
+}
+
+/** Pick the factor (€, ct, 1e-7 € like Zonneplan) closest to the current price. */
+function forecastScale(points, reference) {
+  const values = points.map((p) => Math.abs(p[1])).filter((v) => v > 0).sort((a, b) => a - b);
+  if (!values.length || !(Math.abs(reference) > 0)) return 1;
+  const median = values[Math.floor(values.length / 2)];
+  let best = 1;
+  let bestDiff = Infinity;
+  for (const f of [1, 0.01, 0.001, 1e-5, 1e-7]) {
+    const diff = Math.abs(Math.log10((median * f) / Math.abs(reference)));
+    if (diff < bestDiff) {
+      bestDiff = diff;
+      best = f;
+    }
+  }
+  return best;
+}
+
+function withForecast(data, forecasts, hass, style) {
+  if (!Array.isArray(data) || !hass) return data;
+  const out = data.filter((s) => !String(s?.id || "").startsWith("epg-forecast-"));
+  const now = Date.now();
+  forecasts.forEach((f, i) => {
+    const stateObj = hass.states?.[f.entity];
+    const points = forecastPoints(stateObj);
+    if (!points.length) return;
+    const factor = forecastScale(points, Number(hass.states?.[f.reference]?.state));
+    // Start with the period that is running now, so the dashed line connects
+    // to the measured line.
+    const idx = points.findIndex((p) => p[0] > now);
+    const from = idx === -1 ? points.length : Math.max(0, idx - 1);
+    const future = points.slice(from).map(([t, v]) => [t, v * factor]);
+    if (!future.length) return;
+    out.push({
+      id: `epg-forecast-${i}`,
+      name: f.name,
+      type: "line",
+      data: future,
+      color: f.color,
+      itemStyle: { color: f.color },
+      lineStyle: { type: "dashed", width: 1.5, color: f.color },
+      symbol: "none",
+      smooth: style === "smooth" ? 0.4 : false,
+      step: style === "stepped" ? "end" : false,
+      cursor: "default",
+    });
+  });
+  return out;
+}
+
 function patchChartBase(cls) {
   const proto = cls?.prototype;
   if (!proto || proto[MARK]) return;
@@ -428,11 +633,15 @@ function patchChartBase(cls) {
     try {
       const card = hostCard(this);
       if (card) queueMicrotask(() => decorateHeader(card));
-      if (changed?.has?.("data")) {
-        const style = lineStyleFor(this);
-        if (style && style !== "smooth") {
-          this.data = styleSeries(this.data, style);
+      if (changed?.has?.("data") && card) {
+        const cfg = cardConfig(card);
+        const style = cfg?.[LINE_KEY] ?? lineStyleFor(this);
+        let data = this.data;
+        if (style && style !== "smooth") data = styleSeries(data, style);
+        if (Array.isArray(cfg?.[FORECAST_KEY])) {
+          data = withForecast(data, cfg[FORECAST_KEY], this.hass || card.hass, style);
         }
+        if (data !== this.data) this.data = data;
       }
     } catch (e) {
       console.warn(TAG, "could not apply line style", e);
@@ -521,14 +730,156 @@ function decorateHeader(card) {
       }
       const [dot, text] = chip.children;
       dot.style.background = item.color || "var(--primary-color)";
-      const value = formatPrice(hass, hass?.states?.[item.entity]);
+      const stateObj = hass?.states?.[item.entity];
+      const value = formatPrice(hass, stateObj);
       if (text.textContent !== value) text.textContent = value;
-      chip.title = item.tooltip || item.name || "";
-      chip.setAttribute("aria-label", `${chip.title} ${value}`);
+      let title = item.tooltip || item.name || "";
+      const level = item.colored ? priceLevel(card, hass, item, Number(stateObj?.state)) : null;
+      if (level) {
+        chip.style.borderColor = level.color;
+        chip.style.background = `color-mix(in srgb, ${level.color} 14%, transparent)`;
+        title += ` — ${item.todayAvgLabel || "average today"}: ${formatPrice(hass, { ...stateObj, state: level.avg })}`;
+      } else {
+        chip.style.borderColor = "var(--divider-color)";
+        chip.style.background = "";
+      }
+      chip.title = title;
+      chip.setAttribute("aria-label", `${title} ${value}`);
     });
     while (box.children.length > items.length) box.lastElementChild.remove();
   } catch (e) {
     console.warn(TAG, "could not show current price", e);
+  }
+}
+
+/* Today's average per sensor, for colouring the current price. */
+// Today's average per sensor. With a forecast sensor the whole day is known
+// (past and upcoming prices), otherwise the recorded prices since midnight
+// are used. Refreshed every 15 minutes.
+const TODAY_AVG = new Map(); // entity -> { day, avg, at, pending }
+
+function localMidnight() {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
+}
+
+function forecastTodayAverage(hass, item, current) {
+  if (!item.forecast) return null;
+  const points = forecastPoints(hass?.states?.[item.forecast]);
+  const start = localMidnight();
+  const end = start + 86400000;
+  const today = points.filter(([t]) => t >= start && t < end);
+  if (!today.length) return null;
+  const factor = forecastScale(today, current);
+  return today.reduce((sum, [, v]) => sum + v * factor, 0) / today.length;
+}
+
+function priceLevel(card, hass, item, current) {
+  if (!Number.isFinite(current)) return null;
+  let avg = forecastTodayAverage(hass, item, current);
+  if (avg == null) {
+    const day = localMidnight();
+    const cached = TODAY_AVG.get(item.entity);
+    const fresh = cached && cached.day === day && cached.at && Date.now() - cached.at < 15 * 60000;
+    if (!fresh && !cached?.pending) {
+      TODAY_AVG.set(item.entity, { ...(cached || {}), pending: true });
+      hass
+        .callWS({
+          type: "recorder/statistics_during_period",
+          start_time: new Date(day).toISOString(),
+          statistic_ids: [item.entity],
+          period: "hour",
+          types: ["mean"],
+        })
+        .then((res) => {
+          const vals = (res?.[item.entity] || []).map((r) => r.mean).filter((v) => typeof v === "number");
+          const a = vals.length ? vals.reduce((x, y) => x + y, 0) / vals.length : null;
+          TODAY_AVG.set(item.entity, { day, avg: a, at: Date.now(), pending: false });
+          decorateHeader(card);
+        })
+        .catch(() => TODAY_AVG.set(item.entity, { day, avg: null, at: Date.now(), pending: false }));
+    }
+    avg = cached?.day === day ? cached.avg : null;
+  }
+  if (avg == null || !avg) return null;
+  // Relative difference, positive = favourable.
+  let rel = (current - avg) / Math.abs(avg);
+  if (item.better !== "high") rel = -rel;
+  const color =
+    rel >= 0.1 ? "var(--success-color, #43a047)"
+    : rel <= -0.1 ? "var(--error-color, #db4437)"
+    : "var(--warning-color, #ffa600)";
+  return { color, avg };
+}
+
+/* "Auto (fine)": choose the resolution from the selected date range. */
+const FINE_STATE = new WeakMap(); // card -> { unsub }
+
+function finePeriod(start, end) {
+  const now = Date.now();
+  const days = ((end ? end.getTime() : now) - start.getTime()) / 86400000;
+  const ageDays = (now - start.getTime()) / 86400000;
+  // 5-minute statistics are kept as long as the recorder keeps history
+  // (purge_keep_days, 10 days by default).
+  if (days <= 7.5 && ageDays <= 10) return "5minute";
+  if (days <= 35) return "hour";
+  if (days <= 400) return "day";
+  return "month";
+}
+
+function handleFinePeriod(card) {
+  const cfg = cardConfig(card);
+  if (!cfg?.[FINE_KEY] || FINE_STATE.has(card) || !card.hass) return;
+  const collection = card.hass.connection?.[`_${cfg.collection_key || "energy_dashboard"}`];
+  if (!collection?.subscribe) return; // tried again on the next update
+  const state = {};
+  FINE_STATE.set(card, state);
+  state.unsub = collection.subscribe((data) => {
+    if (!card.isConnected) {
+      state.unsub?.();
+      FINE_STATE.delete(card);
+      return;
+    }
+    if (!data?.start) return;
+    const run = (state.run = (state.run || 0) + 1);
+    resolveFinePeriod(card, data).then((period) => {
+      if (run !== state.run) return; // a newer date range was selected
+      state.period = period;
+      applyFinePeriod(card, period);
+    });
+  });
+}
+
+/**
+ * 5-minute statistics only exist for sensors the recorder samples itself and
+ * only for the last purge_keep_days; if there are none for this range, use
+ * hourly averages instead of showing an empty graph.
+ */
+async function resolveFinePeriod(card, data) {
+  const period = finePeriod(data.start, data.end);
+  if (period !== "5minute") return period;
+  const ids = (cardConfig(card)?.entities || []).map((e) => (typeof e === "string" ? e : e.entity));
+  try {
+    const res = await card.hass.callWS({
+      type: "recorder/statistics_during_period",
+      start_time: data.start.toISOString(),
+      ...(data.end && { end_time: data.end.toISOString() }),
+      statistic_ids: ids,
+      period: "5minute",
+      types: ["mean"],
+    });
+    const rows = ids.reduce((n, id) => n + (res?.[id]?.length || 0), 0);
+    return rows > 0 ? "5minute" : "hour";
+  } catch (e) {
+    return "hour";
+  }
+}
+
+function applyFinePeriod(card, period) {
+  const current = cardConfig(card);
+  if (period && current && current.period !== period && typeof card.setConfig === "function") {
+    card.setConfig({ ...current, period });
   }
 }
 
@@ -539,7 +890,24 @@ function patchStatisticsCard(cls) {
   proto.updated = function (changed) {
     const result = original?.call(this, changed);
     decorateHeader(this);
+    try {
+      handleFinePeriod(this);
+      // Lovelace may set the original config again: re-apply our period.
+      const state = FINE_STATE.get(this);
+      if (state?.period) applyFinePeriod(this, state.period);
+    } catch (e) {
+      console.warn(TAG, "could not adjust the resolution", e);
+    }
     return result;
+  };
+  const originalDisconnected = proto.disconnectedCallback;
+  proto.disconnectedCallback = function () {
+    const state = FINE_STATE.get(this);
+    if (state) {
+      state.unsub?.();
+      FINE_STATE.delete(this);
+    }
+    return originalDisconnected?.call(this);
   };
   proto[MARK] = true;
 }
@@ -642,7 +1010,7 @@ function paidAverage(data, flows) {
       money += Math.abs(c);
     }
   }
-  return energy > 0 ? money / energy : null;
+  return energy > 0 ? { avg: money / energy, energy } : null;
 }
 
 function marketPeriod(start, end) {
@@ -669,6 +1037,21 @@ async function marketAverages(hass, start, end, ids) {
     out[id] = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
   }
   return out;
+}
+
+/** (market − you) × kWh for import, (you − market) × kWh for export. */
+function savings(r) {
+  let total = 0;
+  let any = false;
+  if (r.importPaid != null && r.importMarket != null && r.importEnergy > 0) {
+    total += (r.importMarket - r.importPaid) * r.importEnergy;
+    any = true;
+  }
+  if (r.hasExport && r.exportPaid != null && r.exportMarket != null && r.exportEnergy > 0) {
+    total += (r.exportPaid - r.exportMarket) * r.exportEnergy;
+    any = true;
+  }
+  return any ? total : null;
 }
 
 class EnergyPriceAverageCard extends HTMLElement {
@@ -733,9 +1116,13 @@ class EnergyPriceAverageCard extends HTMLElement {
     let marketFailed = false;
     try {
       const flows = gridStatIds(data?.prefs, data?.info);
+      const imp = paidAverage(data, flows.from);
+      const exp = flows.to.length ? paidAverage(data, flows.to) : null;
       result = {
-        importPaid: paidAverage(data, flows.from),
-        exportPaid: flows.to.length ? paidAverage(data, flows.to) : null,
+        importPaid: imp?.avg ?? null,
+        importEnergy: imp?.energy ?? 0,
+        exportPaid: exp?.avg ?? null,
+        exportEnergy: exp?.energy ?? 0,
         hasExport: !!c.export_entity || flows.to.length > 0,
         importMarket: flows.fixedImport,
         exportMarket: flows.fixedExport,
@@ -758,6 +1145,7 @@ class EnergyPriceAverageCard extends HTMLElement {
       result = { importPaid: null, exportPaid: null, hasExport: false, importMarket: null, exportMarket: null };
     }
     if (run !== this._run) return; // a newer period was selected meanwhile
+    result.savings = savings(result);
     this._result = result;
     this._render();
     // The recorder may still be starting (e.g. right after a restart): retry.
@@ -788,6 +1176,25 @@ class EnergyPriceAverageCard extends HTMLElement {
     return `<span class="diff ${good ? "good" : "bad"}">${txt}%</span>`;
   }
 
+  _savings(amount, L) {
+    const esc = (t) => String(t ?? "").replace(/[&<>"]/g, (ch) => `&#${ch.charCodeAt(0)};`);
+    const lang = this._hass?.locale?.language || this._hass?.language || "en";
+    const currency = this._hass?.config?.currency;
+    let money;
+    try {
+      money = new Intl.NumberFormat(lang, currency ? { style: "currency", currency } : { maximumFractionDigits: 2 })
+        .format(Math.abs(amount));
+    } catch (e) {
+      money = Math.abs(amount).toFixed(2);
+    }
+    const good = amount >= 0;
+    return `
+      <div class="savings" title="${esc(L.savingsHelp)}">
+        <span>${esc(good ? L.saved : L.extra)}</span>
+        <span class="${good ? "good" : "bad"}">${money}</span>
+      </div>`;
+  }
+
   _row(color, name, you, market, higherIsBetter) {
     return `
       <div class="row">
@@ -812,7 +1219,8 @@ class EnergyPriceAverageCard extends HTMLElement {
           <div class="market" title="${esc(L.marketHelp)}">${esc(L.market)}</div>
         </div>
         ${this._row(c.colors?.import, esc(L.imp), r.importPaid, r.importMarket, false)}
-        ${r.hasExport ? this._row(c.colors?.export, esc(L.exp), r.exportPaid, r.exportMarket, true) : ""}`;
+        ${r.hasExport ? this._row(c.colors?.export, esc(L.exp), r.exportPaid, r.exportMarket, true) : ""}
+        ${c.show_savings !== false && r.savings != null ? this._savings(r.savings, L) : ""}`;
     this.shadowRoot.innerHTML = `
       <style>
         ha-card { height: 100%; }
@@ -833,6 +1241,9 @@ class EnergyPriceAverageCard extends HTMLElement {
         .good { color: var(--success-color, #43a047); }
         .bad { color: var(--error-color, #db4437); }
         .loading { color: var(--secondary-text-color); }
+        .savings { display: flex; justify-content: space-between; align-items: baseline; gap: 8px;
+          margin-top: 6px; padding-top: 10px; border-top: 1px solid var(--divider-color); cursor: help; }
+        .savings span:last-child { font-weight: var(--ha-font-weight-medium, 500); }
       </style>
       <ha-card>
         ${c.title ? `<div class="card-header">${esc(c.title)}</div>` : ""}

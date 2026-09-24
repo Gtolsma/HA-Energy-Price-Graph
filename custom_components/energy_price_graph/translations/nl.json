@@ -15,33 +15,93 @@
       "init": {
         "title": "Opties Energy Price Graph",
         "description": "Wijzigingen worden toegepast zodra je het Energie-dashboard opnieuw opent.",
-        "data": {
-          "period": "Resolutie",
-          "line_style": "Lijnstijl",
-          "views": "Tonen op tabbladen",
-          "show_export": "Terugleverprijs tonen",
-          "show_current": "Huidige prijs tonen",
-          "show_average": "Gemiddelde prijs tonen",
-          "minmax": "Min/max per periode tonen",
-          "title": "Kaarttitel",
-          "import_entity": "Inkoopprijs-sensor (overschrijven)",
-          "export_entity": "Terugleverprijs-sensor (overschrijven)",
-          "import_name": "Naam inkooplijn",
-          "export_name": "Naam terugleverlijn"
-        },
-        "data_description": {
-          "period": "Auto volgt de gekozen periode. 5-minutengegevens worden alleen bewaard zolang je recorder historie bewaart (purge_keep_days).",
-          "line_style": "Recht verbindt de punten direct. Trapsgewijs toont de exacte prijs per periode. Vloeiend tekent een afgeronde lijn.",
-          "views": "Tabbladen van het Energie-dashboard waarop de grafiek verschijnt.",
-          "show_export": "Voegt een tweede lijn toe als de terugleverprijs een andere sensor is dan de inkoopprijs.",
-          "show_current": "Kleine blokjes rechtsboven in de kaart met de huidige inkoop- en terugleverprijs.",
-          "show_average": "Kaart onder Energieverdeling op het tabblad Elektriciteit met je gemiddelde inkoop- en terugleverprijs voor de gekozen periode, naast de gemiddelde marktprijs.",
-          "minmax": "Tekent ook de laagste en hoogste prijs binnen elke periode.",
-          "title": "Leeg laten voor de standaardtitel.",
-          "import_entity": "Leeg laten om de sensor uit je energie-instellingen te gebruiken.",
-          "export_entity": "Leeg laten om de sensor uit je energie-instellingen te gebruiken.",
-          "import_name": "Leeg laten voor de standaardnaam.",
-          "export_name": "Leeg laten voor de standaardnaam."
+        "sections": {
+          "graph": {
+            "name": "Prijsgrafiek",
+            "description": "Hoe de prijsgrafiek eruitziet en op welke tabbladen hij staat.",
+            "data": {
+              "period": "Resolutie",
+              "line_style": "Lijnstijl",
+              "views": "Prijsgrafiek tonen op tabbladen",
+              "show_export": "Terugleverprijs tonen",
+              "minmax": "Min/max per periode tonen"
+            },
+            "data_description": {
+              "period": "Automatisch (fijn) toont elke prijsstap (5-minutengegevens, dus kwartierprijzen wisselen precies om :00, :15, :30 en :45) voor periodes tot een week binnen de recorderhistorie, en uur- of daggemiddelden voor langere periodes. Automatisch gebruikt uurgemiddelden voor een dag. 5-minutengegevens worden bewaard zolang je recorder historie bewaart (purge_keep_days, standaard 10 dagen).",
+              "line_style": "Recht verbindt de punten direct. Trapsgewijs toont de exacte prijs per periode. Vloeiend tekent een afgeronde lijn.",
+              "views": "Tabbladen van het Energie-dashboard waarop de stroomprijsgrafiek verschijnt.",
+              "show_export": "Voegt een tweede lijn toe als de terugleverprijs een andere sensor is dan de inkoopprijs.",
+              "minmax": "Tekent ook de laagste en hoogste prijs binnen elke periode."
+            }
+          },
+          "current": {
+            "name": "Huidige prijs",
+            "description": "Blokjes met de huidige prijs rechtsboven in de grafiek.",
+            "data": {
+              "show_current": "Huidige prijs tonen",
+              "show_price_colors": "Huidige prijs kleuren"
+            },
+            "data_description": {
+              "show_current": "Kleine blokjes rechtsboven in de kaart met de huidige prijs.",
+              "show_price_colors": "Groen als de huidige prijs gunstig is ten opzichte van de gemiddelde prijs van vandaag (de hele dag als er een voorspellingssensor is ingesteld, anders de prijzen tot nu toe) (laag voor inkoop en gas, hoog voor teruglevering), oranje rond het gemiddelde, rood als hij ongunstig is."
+            }
+          },
+          "average": {
+            "name": "Gemiddelde prijs",
+            "description": "Kaart onder Energieverdeling op het tabblad Elektriciteit.",
+            "data": {
+              "show_average": "Gemiddelde prijs tonen",
+              "show_savings": "Besparing tonen"
+            },
+            "data_description": {
+              "show_average": "Kaart onder Energieverdeling op het tabblad Elektriciteit met je gemiddelde inkoop- en terugleverprijs voor de gekozen periode, naast de gemiddelde marktprijs.",
+              "show_savings": "Voegt aan de kaart met de gemiddelde prijs toe hoeveel je bespaarde (of meer betaalde) ten opzichte van het marktgemiddelde."
+            }
+          },
+          "gas": {
+            "name": "Gas",
+            "description": "Prijsgrafiek op het tabblad Gas.",
+            "data": {
+              "show_gas": "Gasprijs tonen"
+            },
+            "data_description": {
+              "show_gas": "Prijsgrafiek op het tabblad Gas, met de gasprijssensor uit je energie-instellingen."
+            }
+          },
+          "forecast": {
+            "name": "Voorspelling (komende prijzen)",
+            "description": "Kies een sensor die de komende prijzen in zijn attributen heeft (bijvoorbeeld Nord Pool, ENTSO-e, Zonneplan of Frank Energie). Komende prijzen worden als stippellijn getekend; kies morgen in de datumkiezer om morgen te zien.",
+            "data": {
+              "forecast_import_entity": "Voorspelling inkoopprijs",
+              "forecast_export_entity": "Voorspelling terugleverprijs",
+              "forecast_gas_entity": "Voorspelling gasprijs"
+            },
+            "data_description": {
+              "forecast_import_entity": "Leeg laten voor geen voorspellingslijn.",
+              "forecast_export_entity": "Leeg laten voor geen voorspellingslijn.",
+              "forecast_gas_entity": "Leeg laten voor geen voorspellingslijn."
+            }
+          },
+          "advanced": {
+            "name": "Geavanceerd",
+            "description": "Andere sensoren, titel en namen.",
+            "data": {
+              "title": "Kaarttitel",
+              "import_entity": "Inkoopprijs-sensor (overschrijven)",
+              "export_entity": "Terugleverprijs-sensor (overschrijven)",
+              "gas_entity": "Gasprijs-sensor (overschrijven)",
+              "import_name": "Naam inkooplijn",
+              "export_name": "Naam terugleverlijn"
+            },
+            "data_description": {
+              "title": "Leeg laten voor de standaardtitel.",
+              "import_entity": "Leeg laten om de sensor uit je energie-instellingen te gebruiken.",
+              "export_entity": "Leeg laten om de sensor uit je energie-instellingen te gebruiken.",
+              "gas_entity": "Leeg laten om de sensor uit je energie-instellingen te gebruiken.",
+              "import_name": "Leeg laten voor de standaardnaam.",
+              "export_name": "Leeg laten voor de standaardnaam."
+            }
+          }
         }
       }
     },
@@ -52,6 +112,7 @@
   "selector": {
     "period": {
       "options": {
+        "auto_fine": "Automatisch (fijn)",
         "auto": "Automatisch",
         "5minute": "5 minuten",
         "hour": "Uur",

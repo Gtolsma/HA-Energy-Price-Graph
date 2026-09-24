@@ -15,33 +15,93 @@
       "init": {
         "title": "Energy Price Graph options",
         "description": "Changes apply the next time you open the Energy dashboard.",
-        "data": {
-          "period": "Resolution",
-          "line_style": "Line style",
-          "views": "Show on tabs",
-          "show_export": "Show export (feed-in) price",
-          "show_current": "Show current price",
-          "show_average": "Show average price",
-          "minmax": "Show min/max per period",
-          "title": "Card title",
-          "import_entity": "Import price sensor (override)",
-          "export_entity": "Export price sensor (override)",
-          "import_name": "Name of import line",
-          "export_name": "Name of export line"
-        },
-        "data_description": {
-          "period": "Auto follows the selected date range. 5-minute data is only kept as long as your recorder keeps history (purge_keep_days).",
-          "line_style": "Straight connects the points directly. Stepped shows the exact price per period. Smooth draws a rounded curve.",
-          "views": "Tabs of the Energy dashboard where the graph is shown.",
-          "show_export": "Adds a second line when the export price is a different sensor than the import price.",
-          "show_current": "Small chips in the card header with the current import and export price.",
-          "show_average": "Card below Energy distribution on the Electricity tab with your average import and export price for the selected period, next to the average market price.",
-          "minmax": "Also draws the lowest and highest price within each period.",
-          "title": "Leave empty for the default title.",
-          "import_entity": "Leave empty to use the sensor from your energy settings.",
-          "export_entity": "Leave empty to use the sensor from your energy settings.",
-          "import_name": "Leave empty for the default.",
-          "export_name": "Leave empty for the default."
+        "sections": {
+          "graph": {
+            "name": "Price graph",
+            "description": "How the price graph looks and on which tabs it is shown.",
+            "data": {
+              "period": "Resolution",
+              "line_style": "Line style",
+              "views": "Show the price graph on tabs",
+              "show_export": "Show export price",
+              "minmax": "Show min/max per period"
+            },
+            "data_description": {
+              "period": "Auto (fine) shows every price step (5-minute data, so quarter-hour prices change exactly at :00, :15, :30 and :45) for periods up to a week within the recorder history, and hourly or daily averages for longer periods. Auto uses hourly averages for a day. 5-minute data is kept as long as your recorder keeps history (purge_keep_days, default 10 days).",
+              "line_style": "Straight connects the points directly. Stepped shows the exact price per period. Smooth draws a rounded curve.",
+              "views": "Tabs of the Energy dashboard where the electricity price graph is shown.",
+              "show_export": "Adds a second line when the export price is a different sensor than the import price.",
+              "minmax": "Also draws the lowest and highest price within each period."
+            }
+          },
+          "current": {
+            "name": "Current price",
+            "description": "Chips with the current price in the header of the graph.",
+            "data": {
+              "show_current": "Show current price",
+              "show_price_colors": "Colour the current price"
+            },
+            "data_description": {
+              "show_current": "Small chips in the card header with the current price.",
+              "show_price_colors": "Green when the current price is favourable compared to today's average price (the whole day when a forecast sensor is set, otherwise the prices so far today) (low for import and gas, high for export), orange around the average, red when unfavourable."
+            }
+          },
+          "average": {
+            "name": "Average price",
+            "description": "Card below Energy distribution on the Electricity tab.",
+            "data": {
+              "show_average": "Show average price",
+              "show_savings": "Show savings"
+            },
+            "data_description": {
+              "show_average": "Card below Energy distribution on the Electricity tab with your average import and export price for the selected period, next to the average market price.",
+              "show_savings": "Adds how much you saved (or paid extra) compared to the market average to the average price card."
+            }
+          },
+          "gas": {
+            "name": "Gas",
+            "description": "Price graph on the Gas tab.",
+            "data": {
+              "show_gas": "Show gas price"
+            },
+            "data_description": {
+              "show_gas": "Price graph on the Gas tab, using the gas price sensor from your energy settings."
+            }
+          },
+          "forecast": {
+            "name": "Forecast (upcoming prices)",
+            "description": "Choose a sensor that has the upcoming prices in its attributes (for example Nord Pool, ENTSO-e, Zonneplan or Frank Energie). Upcoming prices are drawn as a dashed line; open tomorrow in the date picker to see tomorrow.",
+            "data": {
+              "forecast_import_entity": "Forecast for import price",
+              "forecast_export_entity": "Forecast for export price",
+              "forecast_gas_entity": "Forecast for gas price"
+            },
+            "data_description": {
+              "forecast_import_entity": "Leave empty for no forecast line.",
+              "forecast_export_entity": "Leave empty for no forecast line.",
+              "forecast_gas_entity": "Leave empty for no forecast line."
+            }
+          },
+          "advanced": {
+            "name": "Advanced",
+            "description": "Overrides for sensors, title and names.",
+            "data": {
+              "title": "Card title",
+              "import_entity": "Import price sensor (override)",
+              "export_entity": "Export price sensor (override)",
+              "gas_entity": "Gas price sensor (override)",
+              "import_name": "Name of import line",
+              "export_name": "Name of export line"
+            },
+            "data_description": {
+              "title": "Leave empty for the default title.",
+              "import_entity": "Leave empty to use the sensor from your energy settings.",
+              "export_entity": "Leave empty to use the sensor from your energy settings.",
+              "gas_entity": "Leave empty to use the sensor from your energy settings.",
+              "import_name": "Leave empty for the default.",
+              "export_name": "Leave empty for the default."
+            }
+          }
         }
       }
     },
@@ -52,6 +112,7 @@
   "selector": {
     "period": {
       "options": {
+        "auto_fine": "Auto (fine)",
         "auto": "Auto",
         "5minute": "5 minutes",
         "hour": "Hour",
