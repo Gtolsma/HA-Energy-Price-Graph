@@ -158,8 +158,8 @@ const LABELS = {
   en: {
     title: "Electricity price", imp: "Import", exp: "Export", now: "Current price",
     gasTitle: "Gas price", gas: "Gas", forecast: "forecast", todayAvg: "average today",
-    saved: "Saved vs market", extra: "Paid extra vs market",
-    savingsHelp: "(market price − your price) × energy, for import and export together",
+    result: "Result vs market",
+    savingsHelp: "Import: (market price − your price) × energy bought. Export: (your price − market price) × energy sold. Positive means you did better than the market average.",
     avgTitle: "Average price", you: "You", market: "Market",
     youHelp: "What you actually paid or received per kWh in the selected period (cost ÷ energy)",
     marketHelp: "Average market price in the selected period",
@@ -167,8 +167,8 @@ const LABELS = {
   nl: {
     title: "Stroomprijs", imp: "Inkoop", exp: "Teruglevering", now: "Huidige prijs",
     gasTitle: "Gasprijs", gas: "Gas", forecast: "verwacht", todayAvg: "gemiddelde vandaag",
-    saved: "Bespaard t.o.v. markt", extra: "Meer betaald t.o.v. markt",
-    savingsHelp: "(marktprijs − jouw prijs) × energie, voor inkoop en teruglevering samen",
+    result: "Resultaat t.o.v. markt",
+    savingsHelp: "Inkoop: (marktprijs − jouw prijs) × ingekochte energie. Teruglevering: (jouw prijs − marktprijs) × teruggeleverde energie. Positief betekent beter dan het marktgemiddelde.",
     avgTitle: "Gemiddelde prijs", you: "Jij", market: "Markt",
     youHelp: "Wat je in de gekozen periode echt betaalde of ontving per kWh (kosten ÷ energie)",
     marketHelp: "Gemiddelde marktprijs in de gekozen periode",
@@ -176,8 +176,8 @@ const LABELS = {
   de: {
     title: "Strompreis", imp: "Bezug", exp: "Einspeisung", now: "Aktueller Preis",
     gasTitle: "Gaspreis", gas: "Gas", forecast: "Prognose", todayAvg: "Durchschnitt heute",
-    saved: "Ersparnis ggü. Markt", extra: "Mehrkosten ggü. Markt",
-    savingsHelp: "(Marktpreis − dein Preis) × Energie, Bezug und Einspeisung zusammen",
+    result: "Ergebnis ggü. Markt",
+    savingsHelp: "Bezug: (Marktpreis − dein Preis) × bezogene Energie. Einspeisung: (dein Preis − Marktpreis) × eingespeiste Energie. Positiv heißt besser als der Marktdurchschnitt.",
     avgTitle: "Durchschnittspreis", you: "Du", market: "Markt",
     youHelp: "Was du im gewählten Zeitraum pro kWh tatsächlich bezahlt oder erhalten hast (Kosten ÷ Energie)",
     marketHelp: "Durchschnittlicher Marktpreis im gewählten Zeitraum",
@@ -196,8 +196,7 @@ function labels(hass) {
     gas: l.gas,
     forecast: l.forecast,
     todayAvg: l.todayAvg,
-    saved: l.saved,
-    extra: l.extra,
+    result: l.result,
     savingsHelp: l.savingsHelp,
     avgTitle: l.avgTitle,
     you: l.you,
@@ -1039,19 +1038,22 @@ async function marketAverages(hass, start, end, ids) {
   return out;
 }
 
-/** (market − you) × kWh for import, (you − market) × kWh for export. */
+/**
+ * Result compared with the market average, per direction and in total.
+ * Import: (market − you) × kWh bought. Export: (you − market) × kWh sold.
+ * Positive means better than the market average.
+ */
 function savings(r) {
-  let total = 0;
-  let any = false;
-  if (r.importPaid != null && r.importMarket != null && r.importEnergy > 0) {
-    total += (r.importMarket - r.importPaid) * r.importEnergy;
-    any = true;
-  }
-  if (r.hasExport && r.exportPaid != null && r.exportMarket != null && r.exportEnergy > 0) {
-    total += (r.exportPaid - r.exportMarket) * r.exportEnergy;
-    any = true;
-  }
-  return any ? total : null;
+  const imp =
+    r.importPaid != null && r.importMarket != null && r.importEnergy > 0
+      ? (r.importMarket - r.importPaid) * r.importEnergy
+      : null;
+  const exp =
+    r.hasExport && r.exportPaid != null && r.exportMarket != null && r.exportEnergy > 0
+      ? (r.exportPaid - r.exportMarket) * r.exportEnergy
+      : null;
+  const total = imp == null && exp == null ? null : (imp || 0) + (exp || 0);
+  return { import: imp, export: exp, total };
 }
 
 class EnergyPriceAverageCard extends HTMLElement {
@@ -1173,33 +1175,43 @@ class EnergyPriceAverageCard extends HTMLElement {
       maximumFractionDigits: 1,
       signDisplay: "exceptZero",
     }).format(pct);
-    return `<span class="diff ${good ? "good" : "bad"}">${txt}%</span>`;
+    return `<span class="${good ? "good" : "bad"}">${txt}%</span>`;
   }
 
-  _savings(amount, L) {
-    const esc = (t) => String(t ?? "").replace(/[&<>"]/g, (ch) => `&#${ch.charCodeAt(0)};`);
+  /** Signed money amount, e.g. "+€0,06" / "−€0,19". */
+  _money(amount) {
     const lang = this._hass?.locale?.language || this._hass?.language || "en";
     const currency = this._hass?.config?.currency;
-    let money;
     try {
-      money = new Intl.NumberFormat(lang, currency ? { style: "currency", currency } : { maximumFractionDigits: 2 })
-        .format(Math.abs(amount));
+      return new Intl.NumberFormat(lang, {
+        ...(currency ? { style: "currency", currency } : { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+        signDisplay: "exceptZero",
+      }).format(amount);
     } catch (e) {
-      money = Math.abs(amount).toFixed(2);
+      return (amount >= 0 ? "+" : "−") + Math.abs(amount).toFixed(2);
     }
-    const good = amount >= 0;
+  }
+
+  _total(amount, L) {
+    const esc = (t) => String(t ?? "").replace(/[&<>"]/g, (ch) => `&#${ch.charCodeAt(0)};`);
     return `
       <div class="savings" title="${esc(L.savingsHelp)}">
-        <span>${esc(good ? L.saved : L.extra)}</span>
-        <span class="${good ? "good" : "bad"}">${money}</span>
+        <span>${esc(L.result)}</span>
+        <span class="${amount >= 0 ? "good" : "bad"}">${this._money(amount)}</span>
       </div>`;
   }
 
-  _row(color, name, you, market, higherIsBetter) {
+  _row(color, name, you, market, higherIsBetter, amount) {
+    // Percentage and euro amount side by side on one line below the price.
+    const parts = [
+      this._diff(you, market, higherIsBetter),
+      amount != null ? `<span class="${amount >= 0 ? "good" : "bad"}">${this._money(amount)}</span>` : "",
+    ].filter(Boolean);
+    const sub = parts.length ? `<span class="diff">${parts.join('<span class="sep">·</span>')}</span>` : "";
     return `
       <div class="row">
         <div class="name"><span class="dot" style="background:${color}"></span>${name}</div>
-        <div class="you">${this._fmt(you)}${this._diff(you, market, higherIsBetter)}</div>
+        <div class="you">${this._fmt(you)}${sub}</div>
         <div class="market">${this._fmt(market)}</div>
       </div>`;
   }
@@ -1210,6 +1222,7 @@ class EnergyPriceAverageCard extends HTMLElement {
     const L = c.labels || {};
     const r = this._result;
     const esc = (t) => String(t ?? "").replace(/[&<>"]/g, (ch) => `&#${ch.charCodeAt(0)};`);
+    const money = c.show_savings !== false;
     const body = !r
       ? `<div class="loading">…</div>`
       : `
@@ -1218,9 +1231,9 @@ class EnergyPriceAverageCard extends HTMLElement {
           <div class="you" title="${esc(L.youHelp)}">${esc(L.you)}</div>
           <div class="market" title="${esc(L.marketHelp)}">${esc(L.market)}</div>
         </div>
-        ${this._row(c.colors?.import, esc(L.imp), r.importPaid, r.importMarket, false)}
-        ${r.hasExport ? this._row(c.colors?.export, esc(L.exp), r.exportPaid, r.exportMarket, true) : ""}
-        ${c.show_savings !== false && r.savings != null ? this._savings(r.savings, L) : ""}`;
+        ${this._row(c.colors?.import, esc(L.imp), r.importPaid, r.importMarket, false, money ? r.savings?.import : null)}
+        ${r.hasExport ? this._row(c.colors?.export, esc(L.exp), r.exportPaid, r.exportMarket, true, money ? r.savings?.export : null) : ""}
+        ${money && r.savings?.total != null ? this._total(r.savings.total, L) : ""}`;
     this.shadowRoot.innerHTML = `
       <style>
         ha-card { height: 100%; }
@@ -1237,7 +1250,8 @@ class EnergyPriceAverageCard extends HTMLElement {
         .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
         .you { font-weight: var(--ha-font-weight-medium, 500); text-align: end; }
         .market { color: var(--secondary-text-color); text-align: end; }
-        .diff { display: block; font-size: var(--ha-font-size-s, 12px); font-weight: 400; }
+        .diff { display: block; font-size: var(--ha-font-size-s, 12px); font-weight: 400; white-space: nowrap; }
+        .sep { margin: 0 6px; color: var(--secondary-text-color); }
         .good { color: var(--success-color, #43a047); }
         .bad { color: var(--error-color, #db4437); }
         .loading { color: var(--secondary-text-color); }
