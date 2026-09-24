@@ -5,6 +5,14 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.2] - 2026-09-24
+
+### Fixed
+
+- Repository clean-up: copies of the integration files had ended up in the root of the repository, which made the automatic hassfest and test checks fail. They have been removed, so the checks pass again for this release.
+
+This is a maintenance release: the integration itself is identical to 1.5.1, so updating is optional.
+
 ## [1.5.1] - 2026-09-24
 
 ### Fixed
@@ -100,6 +108,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - English, Dutch and German default labels; English and Dutch UI translations.
 - Integration icon (`brand/`), shown in Home Assistant 2026.3 and newer.
 
+[1.5.2]: https://github.com/Gtolsma/HA-Energy-Price-Graph/compare/1.5.1...1.5.2
 [1.5.1]: https://github.com/Gtolsma/HA-Energy-Price-Graph/compare/1.5.0...1.5.1
 [1.5.0]: https://github.com/Gtolsma/HA-Energy-Price-Graph/compare/1.4.1...1.5.0
 [1.4.1]: https://github.com/Gtolsma/HA-Energy-Price-Graph/compare/1.4.0...1.4.1
