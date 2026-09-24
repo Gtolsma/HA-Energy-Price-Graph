@@ -5,6 +5,13 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.3] - 2026-09-24
+
+### Changed
+
+- Average price card: the result compared with the market average is now shown in euros for import and export separately, and the total is labelled *Result vs market* with a + or − sign. Previously only the total was shown as *Saved* or *Paid extra*, which was misleading when most of the difference came from export (for example with solar panels, where you mostly export when prices are low).
+- The option *Show savings* is renamed to *Show result in euros*.
+
 ## [1.5.2] - 2026-09-24
 
 ### Fixed
@@ -108,6 +115,7 @@ This is a maintenance release: the integration itself is identical to 1.5.1, so 
 - English, Dutch and German default labels; English and Dutch UI translations.
 - Integration icon (`brand/`), shown in Home Assistant 2026.3 and newer.
 
+[1.5.3]: https://github.com/Gtolsma/HA-Energy-Price-Graph/compare/1.5.2...1.5.3
 [1.5.2]: https://github.com/Gtolsma/HA-Energy-Price-Graph/compare/1.5.1...1.5.2
 [1.5.1]: https://github.com/Gtolsma/HA-Energy-Price-Graph/compare/1.5.0...1.5.1
 [1.5.0]: https://github.com/Gtolsma/HA-Energy-Price-Graph/compare/1.4.1...1.5.0
