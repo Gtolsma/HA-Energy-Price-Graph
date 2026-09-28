@@ -8,6 +8,9 @@ from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.setup import async_setup_component
 
+from custom_components.energy_price_graph.config_flow import nest
+from custom_components.energy_price_graph.const import DEFAULT_OPTIONS, SECTIONS
+
 DOMAIN = "energy_price_graph"
 
 
@@ -74,6 +77,11 @@ async def test_setup_registers_module(
     assert options["show_export"] is True
     assert options["show_current"] is True
     assert options["show_average"] is True
+    assert options["show_now_line"] is True
+    assert options["cheapest_hours"] == 0
+    assert options["price_color_threshold"] == 10
+    assert options["gas_views"] == ["gas"]
+    assert options["forecast_auto"] is True
 
     # Only one instance allowed.
     result = await hass.config_entries.flow.async_init(
@@ -88,6 +96,11 @@ async def test_setup_registers_module(
     assert await _ws_options(hass_ws_client) is None
 
 
+def _form(**options) -> dict:
+    """Options form input: the defaults with some options changed."""
+    return nest({**DEFAULT_OPTIONS, **options})
+
+
 async def test_options_flow_updates_options(
     hass: HomeAssistant, hass_ws_client
 ) -> None:
@@ -99,41 +112,46 @@ async def test_options_flow_updates_options(
 
     # No tabs selected -> error.
     result = await hass.config_entries.options.async_configure(
-        result["flow_id"],
-        {
-            "graph": {
-                "period": "5minute",
-                "line_style": "smooth",
-                "views": [],
-                "show_export": False,
-                "minmax": True,
-            },
-            "current": {"show_current": True, "show_price_colors": True},
-            "average": {"show_average": True, "show_savings": True},
-            "gas": {"show_gas": True},
-            "forecast": {},
-            "advanced": {},
-        },
+        result["flow_id"], _form(views=[])
     )
     assert result["type"] is FlowResultType.FORM
     assert result["errors"] == {"base": "no_views"}
 
+    # Gas price on, but on no tab -> error.
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], _form(gas_views=[])
+    )
+    assert result["type"] is FlowResultType.FORM
+    assert result["errors"] == {"base": "no_gas_views"}
+
     result = await hass.config_entries.options.async_configure(
         result["flow_id"],
-        {
-            "graph": {
-                "period": "5minute",
-                "line_style": "stepped",
-                "views": ["electricity"],
-                "show_export": False,
-                "minmax": True,
-            },
-            "current": {"show_current": False, "show_price_colors": False},
-            "average": {"show_average": False, "show_savings": False},
-            "gas": {"show_gas": False},
-            "forecast": {"forecast_import_entity": "sensor.nordpool"},
-            "advanced": {"title": "Prijs", "import_entity": "sensor.price"},
-        },
+        _form(
+            period="5minute",
+            line_style="stepped",
+            views=["electricity"],
+            show_export=False,
+            minmax=True,
+            show_now_line=False,
+            show_average_line=True,
+            cheapest_hours=3,
+            highlight_negative=False,
+            show_current=False,
+            show_price_colors=False,
+            price_color_threshold=15,
+            show_average=False,
+            show_savings=False,
+            show_timing=False,
+            import_surcharge=0.12,
+            export_surcharge=-0.02,
+            show_gas=False,
+            gas_views=[],
+            forecast_auto=False,
+            forecast_import_entity="sensor.nordpool",
+            forecast_attribute="raw_tomorrow",
+            title="Prijs",
+            import_entity="sensor.price",
+        ),
     )
     assert result["type"] is FlowResultType.CREATE_ENTRY
     await hass.async_block_till_done()
@@ -151,9 +169,20 @@ async def test_options_flow_updates_options(
     assert options["minmax"] is True
     assert options["title"] == "Prijs"
     assert options["import_entity"] == "sensor.price"
+    assert options["show_now_line"] is False
+    assert options["show_average_line"] is True
+    assert options["cheapest_hours"] == 3
+    assert options["highlight_negative"] is False
+    assert options["price_color_threshold"] == 15
+    assert options["show_timing"] is False
+    assert options["import_surcharge"] == 0.12
+    assert options["export_surcharge"] == -0.02
+    assert options["gas_views"] == []
+    assert options["forecast_auto"] is False
+    assert options["forecast_attribute"] == "raw_tomorrow"
     # Form sections are flattened when stored.
     assert options["forecast_import_entity"] == "sensor.nordpool"
-    for name in ("graph", "current", "average", "gas", "forecast", "advanced"):
+    for name in SECTIONS:
         assert name not in options
     assert options["show_gas"] is False
     assert options["show_savings"] is False

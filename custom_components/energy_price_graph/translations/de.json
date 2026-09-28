@@ -1,0 +1,219 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Energy Price Graph",
+        "description": "Fügt dem eingebauten Energie-Dashboard ein Diagramm mit deinem dynamischen Strompreis hinzu. Die Preissensoren werden aus deinen Energieeinstellungen gelesen (Stromnetz → Kosten / Vergütung). Die Optionen kannst du später über Konfigurieren ändern. Lade den Browser nach der Einrichtung einmal neu."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Energy Price Graph ist bereits eingerichtet."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Optionen Energy Price Graph",
+        "description": "Änderungen werden übernommen, sobald du das Energie-Dashboard das nächste Mal öffnest.",
+        "sections": {
+          "graph": {
+            "name": "Preisdiagramm",
+            "description": "Wie das Preisdiagramm aussieht und auf welchen Tabs es angezeigt wird.",
+            "data": {
+              "period": "Auflösung",
+              "line_style": "Linienstil",
+              "views": "Preisdiagramm auf Tabs anzeigen",
+              "show_export": "Einspeisepreis anzeigen",
+              "minmax": "Min/Max pro Zeitraum anzeigen"
+            },
+            "data_description": {
+              "period": "Automatisch (fein) zeigt jeden Preisschritt (5-Minuten-Daten, Viertelstundenpreise wechseln also genau um :00, :15, :30 und :45) für Zeiträume bis zu einer Woche innerhalb des Recorder-Verlaufs, und Stunden- oder Tagesmittel für längere Zeiträume. Automatisch verwendet Stundenmittel für einen Tag. 5-Minuten-Daten werden so lange aufbewahrt wie der Recorder-Verlauf (purge_keep_days, Standard 10 Tage).",
+              "line_style": "Gerade verbindet die Punkte direkt. Stufen zeigt den exakten Preis pro Zeitraum. Glatt zeichnet eine abgerundete Kurve.",
+              "views": "Tabs des Energie-Dashboards, auf denen das Strompreisdiagramm angezeigt wird.",
+              "show_export": "Fügt eine zweite Linie hinzu, wenn der Einspeisepreis ein anderer Sensor als der Bezugspreis ist.",
+              "minmax": "Zeichnet auch den niedrigsten und höchsten Preis innerhalb jedes Zeitraums."
+            }
+          },
+          "markers": {
+            "name": "Markierungen im Diagramm",
+            "description": "Zusätzliche Linien und hervorgehobene Bereiche im Preisdiagramm.",
+            "data": {
+              "show_now_line": "Linie zur aktuellen Uhrzeit anzeigen",
+              "show_average_line": "Durchschnittspreis als Linie anzeigen",
+              "cheapest_hours": "Günstigste Stunden pro Tag hervorheben",
+              "highlight_negative": "Negative Preise hervorheben"
+            },
+            "data_description": {
+              "show_now_line": "Senkrechte gestrichelte Linie zur aktuellen Uhrzeit, wenn der gewählte Zeitraum jetzt enthält.",
+              "show_average_line": "Waagerechte gepunktete Linie beim durchschnittlichen Bezugspreis des angezeigten Zeitraums (einschließlich kommender Preise).",
+              "cheapest_hours": "Färbt die N günstigsten Stunden jedes Tages (0 = aus), zum Beispiel um Waschmaschine oder Laden zu planen. Nur für Tage, deren Preise (fast) alle bekannt sind, mit Prognose also auch heute und morgen.",
+              "highlight_negative": "Färbt den Bereich unter null und zeichnet eine Nulllinie, wenn der Preis negativ ist."
+            }
+          },
+          "current": {
+            "name": "Aktueller Preis",
+            "description": "Chips mit dem aktuellen Preis in der Kopfzeile des Diagramms.",
+            "data": {
+              "show_current": "Aktuellen Preis anzeigen",
+              "show_price_colors": "Aktuellen Preis einfärben",
+              "price_color_threshold": "Spanne um den Durchschnitt"
+            },
+            "data_description": {
+              "show_current": "Kleine Chips in der Kopfzeile der Karte mit dem aktuellen Preis.",
+              "show_price_colors": "Grün, wenn der aktuelle Preis im Vergleich zum heutigen Durchschnittspreis günstig ist (der ganze Tag, wenn eine Prognose vorhanden ist, sonst die bisherigen Preise von heute) (niedrig für Bezug und Gas, hoch für Einspeisung), orange um den Durchschnitt, rot wenn ungünstig.",
+              "price_color_threshold": "Wie weit der Preis vom heutigen Durchschnitt abweichen darf und trotzdem als durchschnittlich (orange) gilt. Gemessen am Durchschnittspreis oder, wenn die Preise nahe null liegen, an der halben heutigen Preisspanne."
+            }
+          },
+          "average": {
+            "name": "Durchschnittspreis",
+            "description": "Karte unter Energieverteilung auf dem Tab Strom.",
+            "data": {
+              "show_average": "Durchschnittspreis anzeigen",
+              "show_savings": "Ergebnis als Betrag anzeigen",
+              "show_timing": "Timing anzeigen",
+              "import_surcharge": "Aufschlag auf Marktpreis Bezug (pro kWh)",
+              "export_surcharge": "Aufschlag auf Marktpreis Einspeisung (pro kWh)"
+            },
+            "data_description": {
+              "show_average": "Karte unter Energieverteilung auf dem Tab Strom mit deinem durchschnittlichen Bezugs- und Einspeisepreis für den gewählten Zeitraum neben dem durchschnittlichen Marktpreis.",
+              "show_savings": "Zeigt, wie viel besser oder schlechter du als der Marktdurchschnitt abgeschnitten hast, in deiner Währung, für Bezug und Einspeisung getrennt und insgesamt.",
+              "show_timing": "Anteil deines Bezugs im günstigsten und teuersten Viertel der Stunden jedes Tages (für Zeiträume bis 35 Tage). Bei gleichmäßigem Verbrauch sind beide etwa 25 %.",
+              "import_surcharge": "Wird zum Durchschnitt des Bezugspreissensors addiert, zum Beispiel Steuern und Aufschlag deines Anbieters, wenn deine Kosten sie enthalten, der Preissensor aber nicht. 0 = keiner.",
+              "export_surcharge": "Wird zum Durchschnitt des Einspeisepreissensors addiert (darf negativ sein, zum Beispiel eine Einspeisegebühr). 0 = keiner."
+            }
+          },
+          "gas": {
+            "name": "Gas",
+            "description": "Gaspreisdiagramm.",
+            "data": {
+              "show_gas": "Gaspreis anzeigen",
+              "gas_views": "Gaspreisdiagramm auf Tabs anzeigen"
+            },
+            "data_description": {
+              "show_gas": "Preisdiagramm mit dem Gaspreissensor aus deinen Energieeinstellungen.",
+              "gas_views": "Tabs des Energie-Dashboards, auf denen das Gaspreisdiagramm angezeigt wird."
+            }
+          },
+          "forecast": {
+            "name": "Prognose (kommende Preise)",
+            "description": "Kommende Preise werden als gestrichelte Linie gezeichnet; wähle morgen in der Datumsauswahl, um morgen zu sehen. Sie werden aus den Attributen eines Sensors gelesen (zum Beispiel Nord Pool, ENTSO-e, Zonneplan oder Frank Energie) oder, für Nord Pool, Tibber, EnergyZero und easyEnergy in Home Assistant, über die Aktion der Integration.",
+            "data": {
+              "forecast_auto": "Preissensor selbst verwenden",
+              "forecast_import_entity": "Prognose für Bezugspreis",
+              "forecast_export_entity": "Prognose für Einspeisepreis",
+              "forecast_gas_entity": "Prognose für Gaspreis",
+              "forecast_attribute": "Attribut mit den kommenden Preisen",
+              "forecast_value_key": "Feld mit dem Preis"
+            },
+            "data_description": {
+              "forecast_auto": "Wenn unten kein Prognosesensor gewählt ist, wird beim Preissensor selbst nach kommenden Preisen gesucht (Attribute oder Aktion der Integration).",
+              "forecast_import_entity": "Leer lassen, um den Preissensor selbst zu verwenden (siehe oben) oder für keine Prognoselinie.",
+              "forecast_export_entity": "Leer lassen, um den Preissensor selbst zu verwenden (siehe oben) oder für keine Prognoselinie.",
+              "forecast_gas_entity": "Leer lassen, um den Preissensor selbst zu verwenden (siehe oben) oder für keine Prognoselinie.",
+              "forecast_attribute": "Nur dieses Attribut lesen, zum Beispiel raw_tomorrow oder prices. Leer lassen, um alle Attribute zu durchsuchen.",
+              "forecast_value_key": "Name des Feldes mit dem Preis in jedem Eintrag, zum Beispiel value oder price_incl_vat. Leer lassen, um es zu erkennen."
+            }
+          },
+          "advanced": {
+            "name": "Erweitert",
+            "description": "Andere Sensoren, Titel und Namen.",
+            "data": {
+              "title": "Kartentitel",
+              "import_entity": "Bezugspreis-Sensor (überschreiben)",
+              "export_entity": "Einspeisepreis-Sensor (überschreiben)",
+              "gas_entity": "Gaspreis-Sensor (überschreiben)",
+              "import_name": "Name der Bezugslinie",
+              "export_name": "Name der Einspeiselinie"
+            },
+            "data_description": {
+              "title": "Leer lassen für den Standardtitel.",
+              "import_entity": "Leer lassen, um den Sensor aus deinen Energieeinstellungen zu verwenden.",
+              "export_entity": "Leer lassen, um den Sensor aus deinen Energieeinstellungen zu verwenden.",
+              "gas_entity": "Leer lassen, um den Sensor aus deinen Energieeinstellungen zu verwenden.",
+              "import_name": "Leer lassen für den Standard.",
+              "export_name": "Leer lassen für den Standard."
+            }
+          }
+        }
+      }
+    },
+    "error": {
+      "no_views": "Wähle mindestens einen Tab.",
+      "no_gas_views": "Wähle mindestens einen Tab für das Gaspreisdiagramm oder schalte den Gaspreis aus."
+    }
+  },
+  "selector": {
+    "period": {
+      "options": {
+        "auto_fine": "Automatisch (fein)",
+        "auto": "Automatisch",
+        "5minute": "5 Minuten",
+        "hour": "Stunde",
+        "day": "Tag"
+      }
+    },
+    "views": {
+      "options": {
+        "electricity": "Strom",
+        "overview": "Übersicht"
+      }
+    },
+    "gas_views": {
+      "options": {
+        "gas": "Gas",
+        "overview": "Übersicht"
+      }
+    },
+    "line_style": {
+      "options": {
+        "straight": "Gerade",
+        "stepped": "Stufen (exakt)",
+        "smooth": "Glatt"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "import_paid_today": {
+        "name": "Durchschnittlicher gezahlter Bezugspreis heute"
+      },
+      "import_market_today": {
+        "name": "Durchschnittlicher Marktpreis Bezug heute"
+      },
+      "export_paid_today": {
+        "name": "Durchschnittlicher erhaltener Einspeisepreis heute"
+      },
+      "export_market_today": {
+        "name": "Durchschnittlicher Marktpreis Einspeisung heute"
+      },
+      "result_today": {
+        "name": "Ergebnis ggü. Markt heute"
+      },
+      "import_paid_month": {
+        "name": "Durchschnittlicher gezahlter Bezugspreis diesen Monat"
+      },
+      "import_market_month": {
+        "name": "Durchschnittlicher Marktpreis Bezug diesen Monat"
+      },
+      "export_paid_month": {
+        "name": "Durchschnittlicher erhaltener Einspeisepreis diesen Monat"
+      },
+      "export_market_month": {
+        "name": "Durchschnittlicher Marktpreis Einspeisung diesen Monat"
+      },
+      "result_month": {
+        "name": "Ergebnis ggü. Markt diesen Monat"
+      }
+    }
+  },
+  "issues": {
+    "frontend_not_active": {
+      "title": "Das Preisdiagramm konnte dem Energie-Dashboard nicht hinzugefügt werden",
+      "description": "Energy Price Graph konnte das Energie-Dashboard in deinem Browser nicht erweitern. Das passiert meist, nachdem ein Home-Assistant-Update (jetzt {ha_version}) den internen Frontend-Code geändert hat, auf den die Integration angewiesen ist. Das Energie-Dashboard selbst funktioniert weiter, nur ohne Preisdiagramm.\n\nDetails: {error}\n\nPrüfe in HACS, ob es ein Update von Energy Price Graph gibt, oder melde es unter {issue_tracker}. Diese Meldung verschwindet von selbst, sobald das Preisdiagramm wieder funktioniert."
+    },
+    "no_price_sensor": {
+      "title": "Kein Preissensor für das Preisdiagramm",
+      "description": "Energy Price Graph hat in deinen Energieeinstellungen keinen Strompreissensor gefunden, daher wird kein Preisdiagramm angezeigt. Lege einen unter Einstellungen → Dashboards → Energie → Stromnetz fest (Kosten: \"Eine Entität mit dem aktuellen Preis verwenden\") oder wähle einen Sensor im Abschnitt Erweitert der Integrationsoptionen. Mit einem festen Preis kannst du diese Meldung ignorieren: Die Karte mit dem Durchschnittspreis funktioniert trotzdem."
+    }
+  }
+}
