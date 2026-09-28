@@ -13,7 +13,11 @@
  * "strategies" (energy-view-strategy / energy-overview-view-strategy). We hook
  * the custom element registry so we can extend their generate() output before
  * first use. This relies on frontend internals: if a Home Assistant update changes
- * them, the Energy dashboard keeps working, just without the price graph.
+ * them, the Energy dashboard keeps working, just without the price graph, and
+ * the integration shows a repair issue.
+ *
+ * The pure calculation functions are exported at the bottom for the tests;
+ * the browser ignores the exports.
  */
 
 // Defaults. Query parameters on the module URL can override them (useful when
@@ -34,15 +38,27 @@ const OPT = {
   line: ["smooth", "straight", "stepped"].includes(params.get("line"))
     ? params.get("line")
     : "straight",
+  nowLine: params.get("now_line") !== "0",
+  averageLine: params.get("average_line") === "1",
+  cheapestHours: Number(params.get("cheapest")) || 0,
+  highlightNegative: params.get("negative") !== "0",
   current: params.get("current") !== "0",
   priceColors: params.get("colors") !== "0",
+  colorThreshold: Number(params.get("threshold")) || 10,
   average: params.get("average") !== "0",
   savings: params.get("savings") !== "0",
+  timing: params.get("timing") !== "0",
+  importSurcharge: 0,
+  exportSurcharge: 0,
   gas: params.get("gas") !== "0",
+  gasViews: (params.get("gas_views") || "gas").split(","),
   gasEntity: params.get("gas_entity") || null,
+  forecastAuto: params.get("forecast_auto") !== "0",
   forecastImport: params.get("forecast_import") || null,
   forecastExport: params.get("forecast_export") || null,
   forecastGas: params.get("forecast_gas") || null,
+  forecastAttribute: null,
+  forecastValueKey: null,
 };
 
 // Marker key on our card config. The statistics-graph card ignores unknown
@@ -54,12 +70,48 @@ const NOW_KEY = "energy_price_graph_now";
 const FINE_KEY = "energy_price_graph_fine";
 // Marker key with the forecast series to draw as dashed lines.
 const FORECAST_KEY = "energy_price_graph_forecast";
+// Marker key with the extra lines and areas (now, average, cheapest, negative).
+const OVERLAY_KEY = "energy_price_graph_overlays";
 
 const TAG = "[energy-price-graph]";
 // Version of this module, from the ?v= parameter the loader adds.
 const MODULE_VERSION = params.get("v");
 const MARK = "__energyPriceInjected";
 const LINE_STYLES = ["smooth", "straight", "stepped"];
+const FORECAST_PREFIX = "epg-forecast-";
+const OVERLAY_PREFIX = "epg-overlay-";
+const HOUR = 3600000;
+const DAY = 86400000;
+
+/* Small helpers */
+
+function lang(hass) {
+  return hass?.locale?.language || hass?.language || "en";
+}
+
+function esc(text) {
+  return String(text ?? "").replace(/[&<>"]/g, (ch) => `&#${ch.charCodeAt(0)};`);
+}
+
+function num(value, fallback = 0) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+/** Statistic row start (ms number, ISO string or Date) as a timestamp. */
+function toMs(value) {
+  if (typeof value === "number") return value;
+  if (value instanceof Date) return value.getTime();
+  const ms = Date.parse(value);
+  return Number.isFinite(ms) ? ms : NaN;
+}
+
+/** Local midnight of the day of a timestamp (default: today). */
+function localMidnight(ts = Date.now()) {
+  const d = new Date(ts);
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
+}
 
 /**
  * Read the current options from the integration. Called every time the
@@ -81,15 +133,27 @@ async function loadOptions(hass) {
   OPT.showExport = o.show_export !== false;
   OPT.minmax = !!o.minmax;
   OPT.line = LINE_STYLES.includes(o.line_style) ? o.line_style : "straight";
+  OPT.nowLine = o.show_now_line !== false;
+  OPT.averageLine = !!o.show_average_line;
+  OPT.cheapestHours = Math.max(0, Math.round(num(o.cheapest_hours)));
+  OPT.highlightNegative = o.highlight_negative !== false;
   OPT.current = o.show_current !== false;
   OPT.priceColors = o.show_price_colors !== false;
+  OPT.colorThreshold = num(o.price_color_threshold, 10) || 10;
   OPT.average = o.show_average !== false;
   OPT.savings = o.show_savings !== false;
+  OPT.timing = o.show_timing !== false;
+  OPT.importSurcharge = num(o.import_surcharge);
+  OPT.exportSurcharge = num(o.export_surcharge);
   OPT.gas = o.show_gas !== false;
+  OPT.gasViews = Array.isArray(o.gas_views) ? o.gas_views : ["gas"];
   OPT.gasEntity = o.gas_entity || null;
+  OPT.forecastAuto = o.forecast_auto !== false;
   OPT.forecastImport = o.forecast_import_entity || null;
   OPT.forecastExport = o.forecast_export_entity || null;
   OPT.forecastGas = o.forecast_gas_entity || null;
+  OPT.forecastAttribute = o.forecast_attribute || null;
+  OPT.forecastValueKey = o.forecast_value_key || null;
   OPT.title = o.title || null;
   OPT.entity = o.import_entity || null;
   OPT.exportEntity = o.export_entity || null;
@@ -113,6 +177,51 @@ function reloadIfOutdated(serverVersion) {
   }
   console.info(TAG, `updated from ${MODULE_VERSION} to ${serverVersion}, reloading`);
   location.reload();
+}
+
+/* ------------------------------------------------------------------------ *
+ * Health reports
+ *
+ * The integration shows a repair issue when the module cannot extend the
+ * Energy dashboard (usually after a Home Assistant update changed the
+ * frontend internals), and removes it again once it works.
+ * ------------------------------------------------------------------------ */
+
+const REPORTED = new Set();
+const PATCHED = new Set();
+
+function report(hass, status, view, error) {
+  if (!hass?.callWS || REPORTED.has(status)) return;
+  // One tab that works must not clear the issue of another tab that failed.
+  if (status === "ok" && REPORTED.has("failed")) return;
+  REPORTED.add(status);
+  hass
+    .callWS({
+      type: "energy_price_graph/report",
+      status,
+      ...(view && { view }),
+      ...(error && { error: String(error?.message || error).slice(0, 500) }),
+      ...(MODULE_VERSION && { version: MODULE_VERSION }),
+    })
+    .catch(() => {}); // integration not loaded or older: ignore
+}
+
+/**
+ * When the Energy panel is open but none of the strategies could be patched,
+ * the frontend internals have changed. Only report this when the energy
+ * settings have a grid source, otherwise the panel may just show its setup.
+ */
+async function checkActive() {
+  if (PATCHED.size || !location.pathname.startsWith("/energy")) return;
+  const hass = document.querySelector("home-assistant")?.hass;
+  if (!hass?.callWS) return;
+  try {
+    const prefs = await hass.callWS({ type: "energy/get_prefs" });
+    if (!(prefs?.energy_sources || []).some((s) => s.type === "grid")) return;
+  } catch (e) {
+    return;
+  }
+  report(hass, "not_active", null, "Energy dashboard strategies not found");
 }
 
 /**
@@ -154,6 +263,17 @@ function themeColor(varName, fallback) {
   return fallback;
 }
 
+function colors() {
+  return {
+    import: themeColor("--energy-grid-consumption-color", "#488fc2"),
+    export: themeColor("--energy-grid-return-color", "#8353d1"),
+    gas: themeColor("--energy-gas-color", "#8e021b"),
+    good: themeColor("--success-color", "#43a047"),
+    bad: themeColor("--error-color", "#db4437"),
+    muted: themeColor("--secondary-text-color", "#727272"),
+  };
+}
+
 const LABELS = {
   en: {
     title: "Electricity price", imp: "Import", exp: "Export", now: "Current price",
@@ -163,6 +283,9 @@ const LABELS = {
     avgTitle: "Average price", you: "You", market: "Market",
     youHelp: "What you actually paid or received per kWh in the selected period (cost ÷ energy)",
     marketHelp: "Average market price in the selected period",
+    surchargeHelp: "including the surcharge from the integration options",
+    timing: "Timing", cheapHours: "in cheap hours", expensiveHours: "in expensive hours",
+    timingHelp: "Share of your import in the cheapest and the most expensive quarter of the hours of each day. With evenly spread use both are about 25 %.",
   },
   nl: {
     title: "Stroomprijs", imp: "Inkoop", exp: "Teruglevering", now: "Huidige prijs",
@@ -172,6 +295,9 @@ const LABELS = {
     avgTitle: "Gemiddelde prijs", you: "Jij", market: "Markt",
     youHelp: "Wat je in de gekozen periode echt betaalde of ontving per kWh (kosten ÷ energie)",
     marketHelp: "Gemiddelde marktprijs in de gekozen periode",
+    surchargeHelp: "inclusief de opslag uit de integratie-opties",
+    timing: "Timing", cheapHours: "in goedkope uren", expensiveHours: "in dure uren",
+    timingHelp: "Aandeel van je inkoop in het goedkoopste en het duurste kwart van de uren van elke dag. Bij gelijkmatig verbruik zijn beide ongeveer 25 %.",
   },
   de: {
     title: "Strompreis", imp: "Bezug", exp: "Einspeisung", now: "Aktueller Preis",
@@ -181,34 +307,26 @@ const LABELS = {
     avgTitle: "Durchschnittspreis", you: "Du", market: "Markt",
     youHelp: "Was du im gewählten Zeitraum pro kWh tatsächlich bezahlt oder erhalten hast (Kosten ÷ Energie)",
     marketHelp: "Durchschnittlicher Marktpreis im gewählten Zeitraum",
+    surchargeHelp: "einschließlich des Aufschlags aus den Integrationsoptionen",
+    timing: "Timing", cheapHours: "in günstigen Stunden", expensiveHours: "in teuren Stunden",
+    timingHelp: "Anteil deines Bezugs im günstigsten und im teuersten Viertel der Stunden jedes Tages. Bei gleichmäßigem Verbrauch sind beide etwa 25 %.",
   },
 };
 
 function labels(hass) {
-  const lang = (hass?.locale?.language || hass?.language || "en").split("-")[0];
-  const l = LABELS[lang] || LABELS.en;
+  const l = LABELS[lang(hass).split("-")[0]] || LABELS.en;
   return {
+    ...l,
     title: OPT.title || l.title,
     imp: OPT.importName || l.imp,
     exp: OPT.exportName || l.exp,
-    now: l.now,
-    gasTitle: l.gasTitle,
-    gas: l.gas,
-    forecast: l.forecast,
-    todayAvg: l.todayAvg,
-    result: l.result,
-    savingsHelp: l.savingsHelp,
-    avgTitle: l.avgTitle,
-    you: l.you,
-    market: l.market,
-    youHelp: l.youHelp,
-    marketHelp: l.marketHelp,
   };
 }
 
 const AVG_CARD = "energy-price-average-card";
 
 function averageCard({ imp, exp }, collectionKey, L) {
+  const c = colors();
   return {
     type: `custom:${AVG_CARD}`,
     title: L.avgTitle,
@@ -217,10 +335,9 @@ function averageCard({ imp, exp }, collectionKey, L) {
     export_entity: exp || null,
     labels: L,
     show_savings: OPT.savings,
-    colors: {
-      import: themeColor("--energy-grid-consumption-color", "#488fc2"),
-      export: themeColor("--energy-grid-return-color", "#8353d1"),
-    },
+    show_timing: OPT.timing,
+    surcharge: { import: OPT.importSurcharge, export: OPT.exportSurcharge },
+    colors: { import: c.import, export: c.export },
   };
 }
 
@@ -256,9 +373,15 @@ function injectAverage(view, card) {
   if (first) first.cards = [card, ...(first.cards || [])];
 }
 
+/** Forecast entity: the chosen one, or the price sensor itself (auto). */
+function forecastEntity(chosen, priceEntity) {
+  return chosen || (OPT.forecastAuto ? priceEntity : null);
+}
+
 /** Settings shared by the electricity and gas price graphs. */
 function graphCard(title, entities, forecasts, collectionKey, L) {
   const fine = OPT.period === "auto_fine";
+  const c = colors();
   return {
     type: "statistics-graph",
     title,
@@ -281,12 +404,22 @@ function graphCard(title, entities, forecasts, collectionKey, L) {
         color: e.color,
         better: e.better,
         colored: OPT.priceColors,
+        threshold: OPT.colorThreshold / 100,
         forecast: forecasts.find((f) => f.reference === e.entity)?.entity || null,
         tooltip: `${L.now}: ${e.name}`,
         todayAvgLabel: L.todayAvg,
       })),
     }),
     ...(forecasts.length && { [FORECAST_KEY]: forecasts }),
+    [OVERLAY_KEY]: {
+      reference: entities[0]?.entity,
+      color: entities[0]?.color,
+      now: OPT.nowLine,
+      average: OPT.averageLine,
+      cheapest: OPT.cheapestHours,
+      negative: OPT.highlightNegative,
+      colors: { good: c.good, bad: c.bad, muted: c.muted },
+    },
     grid_options: { columns: "full" },
   };
 }
@@ -295,29 +428,25 @@ function priceCard({ imp, exp }, collectionKey, L) {
   const entities = [];
   const forecasts = [];
   const sameEntity = imp && exp && imp === exp;
-  const impColor = themeColor("--energy-grid-consumption-color", "#488fc2");
-  const expColor = themeColor("--energy-grid-return-color", "#8353d1");
+  const c = colors();
   if (imp) {
     const name = sameEntity ? L.title : L.imp;
-    entities.push({ entity: imp, name, color: impColor, better: "low" });
-    if (OPT.forecastImport) {
-      forecasts.push({ entity: OPT.forecastImport, reference: imp, name: `${name} (${L.forecast})`, color: impColor });
-    }
+    entities.push({ entity: imp, name, color: c.import, better: "low" });
+    const f = forecastEntity(OPT.forecastImport, imp);
+    if (f) forecasts.push({ entity: f, reference: imp, name: `${name} (${L.forecast})`, color: c.import });
   }
   if (exp && !sameEntity) {
-    entities.push({ entity: exp, name: L.exp, color: expColor, better: "high" });
-    if (OPT.forecastExport) {
-      forecasts.push({ entity: OPT.forecastExport, reference: exp, name: `${L.exp} (${L.forecast})`, color: expColor });
-    }
+    entities.push({ entity: exp, name: L.exp, color: c.export, better: "high" });
+    const f = forecastEntity(OPT.forecastExport, exp);
+    if (f) forecasts.push({ entity: f, reference: exp, name: `${L.exp} (${L.forecast})`, color: c.export });
   }
   return graphCard(L.title, entities, forecasts, collectionKey, L);
 }
 
 function gasCard(gas, collectionKey, L) {
-  const color = themeColor("--energy-gas-color", "#8e021b");
-  const forecasts = OPT.forecastGas
-    ? [{ entity: OPT.forecastGas, reference: gas, name: `${L.gas} (${L.forecast})`, color }]
-    : [];
+  const color = colors().gas;
+  const f = forecastEntity(OPT.forecastGas, gas);
+  const forecasts = f ? [{ entity: f, reference: gas, name: `${L.gas} (${L.forecast})`, color }] : [];
   return graphCard(L.gasTitle, [{ entity: gas, name: L.gas, color, better: "low" }], forecasts, collectionKey, L);
 }
 
@@ -352,7 +481,10 @@ function injectElectricity(view, card) {
   return false;
 }
 
-/** Summary tab: own section after the section with the energy usage graph. */
+/**
+ * Summary tab: own section directly after the section with the energy usage
+ * graph. Cards injected later end up above earlier ones.
+ */
 function injectOverview(view, card) {
   if (injectIntoCards(view, card)) return true;
   const sections = view.sections || (view.sections = []);
@@ -400,6 +532,36 @@ const TARGETS = {
   "gas-view-strategy": { key: "gas", inject: injectGas },
 };
 
+/** Add our cards to a generated Energy view. */
+async function extendView(target, view, config, hass) {
+  await loadOptions(hass);
+  const found = await findPriceEntities(hass);
+  const key = config?.collection_key || "energy_dashboard";
+  const L = labels(hass);
+  const showGas = (tab) => OPT.gas && found.gas && OPT.gasViews.includes(tab);
+  if (target.key === "gas") {
+    if (showGas("gas")) target.inject(view, gasCard(found.gas, key, L));
+    return;
+  }
+  // The average card also works without price sensors (it then shows a
+  // fixed price, if configured, as the market value), so it does not
+  // depend on the graph being shown.
+  if (target.key === "electricity" && OPT.average) {
+    injectAverage(view, averageCard(found, key, L));
+  }
+  // Summary tab: the gas graph goes first, so the electricity graph that is
+  // injected next ends up above it.
+  if (target.key === "overview" && showGas("overview")) {
+    target.inject(view, gasCard(found.gas, key, L));
+  }
+  if (!OPT.views.includes(target.key)) return;
+  if (!found.imp && !found.exp) {
+    console.info(TAG, "no price sensor found, no price graph added");
+    return;
+  }
+  target.inject(view, priceCard(found, key, L));
+}
+
 function patchStrategy(tag, ctor) {
   const target = TARGETS[tag];
   if (!target) return;
@@ -409,32 +571,16 @@ function patchStrategy(tag, ctor) {
   ctor.generate = async function (config, hass, ...rest) {
     const view = await original.call(this, config, hass, ...rest);
     try {
-      await loadOptions(hass);
-      const found = await findPriceEntities(hass);
-      const key = config?.collection_key || "energy_dashboard";
-      const L = labels(hass);
-      if (target.key === "gas") {
-        if (OPT.gas && found.gas) target.inject(view, gasCard(found.gas, key, L));
-        return view;
-      }
-      // The average card also works without price sensors (it then shows a
-      // fixed price, if configured, as the market value), so it does not
-      // depend on the graph being shown.
-      if (target.key === "electricity" && OPT.average) {
-        injectAverage(view, averageCard(found, key, L));
-      }
-      if (!OPT.views.includes(target.key)) return view;
-      if (!found.imp && !found.exp) {
-        console.info(TAG, "no price sensor found, no price graph added");
-        return view;
-      }
-      target.inject(view, priceCard(found, key, L));
+      await extendView(target, view, config, hass);
+      report(hass, "ok", target.key);
     } catch (e) {
       console.error(TAG, "injection failed, dashboard left unchanged", e);
+      report(hass, "failed", target.key, e);
     }
     return view;
   };
   ctor[MARK] = true;
+  PATCHED.add(target.key);
   console.info(TAG, `active on ${target.key}`);
 }
 
@@ -447,6 +593,7 @@ function patchStrategy(tag, ctor) {
 // polyfill after this module has run, so we (re)install the hooks on every
 // registry object we see.
 const HOOK = "__energyPriceGraphHooked";
+let watching = false;
 
 function installRegistryHooks() {
   const reg = window.customElements;
@@ -484,6 +631,13 @@ function installRegistryHooks() {
     .whenDefined("ha-chart-base")
     .then(() => patchChartBase(get.call(reg, "ha-chart-base")))
     .catch(() => {});
+  if (!watching) {
+    watching = true;
+    reg
+      .whenDefined("ha-panel-energy")
+      .then(() => setTimeout(checkActive, 20000))
+      .catch(() => {});
+  }
 }
 
 /* ------------------------------------------------------------------------ *
@@ -495,7 +649,6 @@ function installRegistryHooks() {
  * belong to one of our cards.
  * ------------------------------------------------------------------------ */
 
-/** Walk up from the chart to the card that hosts it and read our marker. */
 /** Walk up from a chart to the statistics-graph card that hosts it. */
 function hostCard(chart) {
   let node = chart;
@@ -521,17 +674,19 @@ function lineStyleFor(chart) {
   return null;
 }
 
+function lineShape(style) {
+  return { smooth: style === "smooth" ? 0.4 : false, step: style === "stepped" ? "end" : false };
+}
+
 function styleSeries(data, style) {
   if (!Array.isArray(data)) return data;
-  return data.map((s) =>
-    s && s.type === "line"
-      ? {
-          ...s,
-          smooth: style === "smooth" ? 0.4 : false,
-          step: style === "stepped" ? "end" : false,
-        }
-      : s
-  );
+  return data.map((s) => (s && s.type === "line" ? { ...s, ...lineShape(style) } : s));
+}
+
+/** Our own series, so they can be removed before they are added again. */
+function isOwnSeries(s) {
+  const id = String(s?.id || "");
+  return id.startsWith(FORECAST_PREFIX) || id.startsWith(OVERLAY_PREFIX);
 }
 
 /* ------------------------------------------------------------------------ *
@@ -542,13 +697,23 @@ function styleSeries(data, style) {
  * (prices: {time, price}), Zonneplan (forecast: {datetime, electricity_price})
  * or Frank Energie (prices: {from, till, price}). We look for lists of objects
  * with a time and a numeric price and scale the values to the unit of the
- * price sensor.
+ * price sensor. Integrations that offer the prices through an action instead
+ * (Nord Pool, Tibber, EnergyZero and easyEnergy in Home Assistant core) are
+ * asked through the integration's websocket API.
  * ------------------------------------------------------------------------ */
 
-const TIME_KEYS = ["start", "from", "time", "datetime", "date_time", "start_time", "startsAt", "starts_at", "valid_from", "date"];
+const TIME_KEYS = ["start", "from", "time", "datetime", "date_time", "start_time", "startsAt", "starts_at", "valid_from", "date", "timestamp"];
+const END_KEYS = ["end", "till", "to", "end_time", "endsAt", "ends_at", "valid_till"];
 const VALUE_KEYS = ["value", "price", "total", "electricity_price", "price_eur", "marketPrice", "market_price", "price_incl_vat", "energy_price", "gas_price"];
 
-function forecastPoints(stateObj) {
+/**
+ * Points [timestamp, value] from the attributes of a sensor. With
+ * `attribute` only that attribute is read; with `valueKey` only that field
+ * is used as the price. Without a known price field, a field is only used
+ * when it is the only other number in the item, so an unrelated number (a
+ * score, an index) is never drawn as a price.
+ */
+function forecastPoints(stateObj, attribute = null, valueKey = null) {
   const points = new Map();
   const visit = (value, depth) => {
     if (depth > 2 || !value) return;
@@ -557,13 +722,19 @@ function forecastPoints(stateObj) {
         if (!item || typeof item !== "object" || Array.isArray(item)) continue;
         const tKey = TIME_KEYS.find((k) => item[k] != null);
         if (!tKey) continue;
-        const ts = Date.parse(item[tKey]);
+        const ts = toMs(item[tKey]);
         if (!Number.isFinite(ts)) continue;
-        let vKey = VALUE_KEYS.find((k) => typeof item[k] === "number");
-        if (!vKey) {
-          vKey = Object.keys(item).find(
-            (k) => !TIME_KEYS.includes(k) && !["end", "till", "to", "end_time"].includes(k) && typeof item[k] === "number"
-          );
+        let vKey;
+        if (valueKey) {
+          vKey = typeof item[valueKey] === "number" ? valueKey : null;
+        } else {
+          vKey = VALUE_KEYS.find((k) => typeof item[k] === "number");
+          if (!vKey) {
+            const others = Object.keys(item).filter(
+              (k) => !TIME_KEYS.includes(k) && !END_KEYS.includes(k) && typeof item[k] === "number"
+            );
+            vKey = others.length === 1 ? others[0] : null;
+          }
         }
         if (vKey) points.set(ts, item[vKey]);
       }
@@ -571,11 +742,13 @@ function forecastPoints(stateObj) {
       for (const v of Object.values(value)) visit(v, depth + 1);
     }
   };
-  for (const v of Object.values(stateObj?.attributes || {})) visit(v, 0);
+  const attrs = stateObj?.attributes || {};
+  const sources = attribute ? [attrs[attribute]] : Object.values(attrs);
+  for (const v of sources) visit(v, 0);
   return [...points.entries()].sort((a, b) => a[0] - b[0]);
 }
 
-/** Pick the factor (€, ct, 1e-7 € like Zonneplan) closest to the current price. */
+/** Pick the factor (€, ct, €/MWh, 1e-7 € like Zonneplan) closest to the current price. */
 function forecastScale(points, reference) {
   const values = points.map((p) => Math.abs(p[1])).filter((v) => v > 0).sort((a, b) => a - b);
   if (!values.length || !(Math.abs(reference) > 0)) return 1;
@@ -592,13 +765,52 @@ function forecastScale(points, reference) {
   return best;
 }
 
-function withForecast(data, forecasts, hass, style) {
+// Upcoming prices from the integration's action, per entity:
+// { points, at, day, pending, waiters }. Refreshed every 15 minutes.
+const ACTION_FORECAST = new Map();
+
+function actionForecast(hass, entity, onLoad) {
+  const day = localMidnight();
+  let entry = ACTION_FORECAST.get(entity);
+  const fresh = entry && entry.day === day && entry.at && Date.now() - entry.at < 15 * 60000;
+  if (!entry) ACTION_FORECAST.set(entity, (entry = { points: [], waiters: new Set() }));
+  if (onLoad) entry.waiters.add(onLoad);
+  if (!fresh && !entry.pending && hass?.callWS) {
+    entry.pending = true;
+    hass
+      .callWS({ type: "energy_price_graph/forecast", entity_id: entity })
+      .then((res) => {
+        entry.points = (res?.points || [])
+          .map(([t, v]) => [toMs(t), v])
+          .filter(([t, v]) => Number.isFinite(t) && typeof v === "number");
+      })
+      .catch(() => {
+        entry.points = []; // integration not loaded or older
+      })
+      .finally(() => {
+        entry.pending = false;
+        entry.at = Date.now();
+        entry.day = day;
+        const waiters = [...entry.waiters];
+        entry.waiters.clear();
+        if (entry.points.length) waiters.forEach((fn) => { try { fn(); } catch (e) { /* ignore */ } });
+      });
+  }
+  return entry.points;
+}
+
+/** Upcoming prices from the sensor's attributes, or else from the action. */
+function forecastFor(hass, entity, onLoad) {
+  const attr = forecastPoints(hass?.states?.[entity], OPT.forecastAttribute, OPT.forecastValueKey);
+  return attr.length ? attr : actionForecast(hass, entity, onLoad);
+}
+
+function withForecast(data, forecasts, hass, style, onLoad) {
   if (!Array.isArray(data) || !hass) return data;
-  const out = data.filter((s) => !String(s?.id || "").startsWith("epg-forecast-"));
+  const out = [...data];
   const now = Date.now();
   forecasts.forEach((f, i) => {
-    const stateObj = hass.states?.[f.entity];
-    const points = forecastPoints(stateObj);
+    const points = forecastFor(hass, f.entity, onLoad);
     if (!points.length) return;
     const factor = forecastScale(points, Number(hass.states?.[f.reference]?.state));
     // Start with the period that is running now, so the dashed line connects
@@ -607,8 +819,9 @@ function withForecast(data, forecasts, hass, style) {
     const from = idx === -1 ? points.length : Math.max(0, idx - 1);
     const future = points.slice(from).map(([t, v]) => [t, v * factor]);
     if (!future.length) return;
+    const ref = data.find((s) => s?.id === `${f.reference}-mean`);
     out.push({
-      id: `epg-forecast-${i}`,
+      id: `${FORECAST_PREFIX}${i}`,
       name: f.name,
       type: "line",
       data: future,
@@ -616,12 +829,208 @@ function withForecast(data, forecasts, hass, style) {
       itemStyle: { color: f.color },
       lineStyle: { type: "dashed", width: 1.5, color: f.color },
       symbol: "none",
-      smooth: style === "smooth" ? 0.4 : false,
-      step: style === "stepped" ? "end" : false,
+      ...lineShape(style),
+      ...(ref?.xAxisIndex != null && { xAxisIndex: ref.xAxisIndex }),
       cursor: "default",
+      epgReference: f.reference,
     });
   });
   return out;
+}
+
+/* ------------------------------------------------------------------------ *
+ * Markers: current time, average price, cheapest hours, negative prices
+ *
+ * The chart only has the line series components of ECharts, so these are
+ * drawn as extra line series: a vertical or horizontal two-point line, or a
+ * line without stroke whose area is shaded. They are kept out of the tooltip
+ * (see wrapTooltip) and the legend (which lists the statistics only).
+ * ------------------------------------------------------------------------ */
+
+/** Finite [timestamp, value] points of a series (gaps and nulls removed). */
+function seriesPoints(series) {
+  const out = [];
+  for (const p of series?.data || []) {
+    const pair = Array.isArray(p) ? p : p?.value;
+    if (!Array.isArray(pair)) continue;
+    const t = toMs(pair[0]);
+    const v = pair[1];
+    if (Number.isFinite(t) && typeof v === "number" && Number.isFinite(v)) out.push([t, v]);
+  }
+  return out;
+}
+
+function medianStep(points) {
+  const diffs = [];
+  for (let i = 1; i < points.length; i++) diffs.push(points[i][0] - points[i - 1][0]);
+  diffs.sort((a, b) => a - b);
+  return diffs.length ? diffs[Math.floor(diffs.length / 2)] : HOUR;
+}
+
+/** Duration each point's price holds: until the next point, at most `max`. */
+function durations(points, max = Infinity) {
+  const step = medianStep(points);
+  return points.map(([t], i) => Math.min(max, (points[i + 1]?.[0] ?? t + step) - t, step * 4));
+}
+
+/** Time-weighted average of points (each price holds until the next point). */
+function timeWeightedMean(points) {
+  if (!points.length) return null;
+  const w = durations(points);
+  let sum = 0;
+  let total = 0;
+  points.forEach(([, v], i) => {
+    sum += v * w[i];
+    total += w[i];
+  });
+  return total > 0 ? sum / total : null;
+}
+
+/**
+ * Start times of the `count` cheapest hours of each day. Only days of which
+ * at least 20 hours are known count, so a day that has only just started is
+ * not marked.
+ */
+function cheapestHourSet(points, count) {
+  const out = new Set();
+  if (!(count > 0) || !points.length) return out;
+  const w = durations(points, HOUR);
+  const hours = new Map(); // hour start -> { sum, weight }
+  points.forEach(([t, v], i) => {
+    const h = Math.floor(t / HOUR) * HOUR;
+    const b = hours.get(h) || { sum: 0, weight: 0 };
+    b.sum += v * w[i];
+    b.weight += w[i];
+    hours.set(h, b);
+  });
+  const days = new Map(); // local midnight -> [[hour, avg]]
+  for (const [h, b] of hours) {
+    if (!(b.weight > 0)) continue;
+    const d = localMidnight(h);
+    if (!days.has(d)) days.set(d, []);
+    days.get(d).push([h, b.sum / b.weight]);
+  }
+  for (const list of days.values()) {
+    if (list.length < 20) continue;
+    list.sort((a, b) => a[1] - b[1]).slice(0, count).forEach(([h]) => out.add(h));
+  }
+  return out;
+}
+
+/**
+ * Data for a shaded area over the points for which `include` is true. Each
+ * price holds until the next point, so a run ends at the next point's time.
+ */
+function runData(points, include) {
+  const out = [];
+  const step = medianStep(points);
+  points.forEach(([t, v], i) => {
+    if (!include(t)) return;
+    out.push([t, v]);
+    const next = points[i + 1];
+    if (!next || !include(next[0])) {
+      const end = next ? next[0] : t + step;
+      out.push([end, v], [end, null]);
+    }
+  });
+  return out;
+}
+
+function withOverlays(data, ov, style, now = Date.now()) {
+  if (!Array.isArray(data) || !ov) return data;
+  const ref =
+    data.find((s) => s?.id === `${ov.reference}-mean`) ||
+    data.find((s) => s?.type === "line" && !isOwnSeries(s));
+  if (!ref) return data;
+  const measured = seriesPoints(ref);
+  const lastMeasured = measured.length ? measured[measured.length - 1][0] : -Infinity;
+  const forecast = seriesPoints(
+    data.find((s) => String(s?.id || "").startsWith(FORECAST_PREFIX) && s.epgReference === ov.reference)
+  ).filter(([t]) => t > lastMeasured);
+  const points = [...measured, ...forecast];
+  if (!points.length) return data;
+
+  const out = [...data];
+  const x0 = points[0][0];
+  const x1 = points[points.length - 1][0] + medianStep(points);
+  const hasNegative = ov.negative && points.some(([, v]) => v < 0);
+  const values = points.map(([, v]) => v).concat(hasNegative ? [0] : []);
+  const yMin = Math.min(...values);
+  const yMax = Math.max(...values);
+  const c = ov.colors || {};
+  const common = {
+    type: "line",
+    symbol: "none",
+    silent: true,
+    animation: false,
+    cursor: "default",
+    tooltip: { show: false },
+    ...(ref.xAxisIndex != null && { xAxisIndex: ref.xAxisIndex }),
+  };
+  const area = (id, series, color) => ({
+    ...common,
+    ...lineShape(style),
+    id: `${OVERLAY_PREFIX}${id}`,
+    data: series,
+    z: 1,
+    lineStyle: { width: 0, opacity: 0 },
+    areaStyle: { color, opacity: 0.2 },
+  });
+  const line = (id, series, color, type, width = 1) => ({
+    ...common,
+    id: `${OVERLAY_PREFIX}${id}`,
+    data: series,
+    smooth: false,
+    step: false,
+    z: 3,
+    color,
+    lineStyle: { color, type, width, opacity: 0.8 },
+  });
+
+  if (ov.cheapest > 0 && medianStep(points) <= HOUR) {
+    const hours = cheapestHourSet(points, ov.cheapest);
+    if (hours.size) {
+      // A band from zero to the top of the graph, so it stays visible next
+      // to the line and does not mix with the negative-price area.
+      const top = yMax > 0 ? yMax : yMin;
+      const inCheap = (t) => hours.has(Math.floor(t / HOUR) * HOUR);
+      const band = runData(points.map(([t]) => [t, top]), inCheap);
+      out.push({ ...area("cheapest", band, c.good || "#43a047"), smooth: false, step: false, z: 0 });
+    }
+  }
+  if (hasNegative) {
+    out.push(area("negative", points.map(([t, v]) => [t, Math.min(v, 0)]), c.bad || "#db4437"));
+    out.push(line("zero", [[x0, 0], [x1, 0]], c.bad || "#db4437", "solid"));
+  }
+  if (ov.average) {
+    const avg = timeWeightedMean(points);
+    if (avg != null) out.push(line("average", [[x0, avg], [x1, avg]], ov.color || c.muted, "dotted", 1.5));
+  }
+  if (ov.now && now >= x0 && now <= x1 && yMax > yMin) {
+    out.push(line("now", [[now, yMin], [now, yMax]], c.muted || "#727272", "dashed"));
+  }
+  return out;
+}
+
+/** Keep the marker series out of the chart's tooltip. */
+function wrapTooltip(chart) {
+  const opts = chart.options;
+  const tooltip = opts?.tooltip;
+  if (!tooltip || typeof tooltip.formatter !== "function" || tooltip.formatter[MARK]) return;
+  const original = tooltip.formatter;
+  const formatter = function (items, ...rest) {
+    const shown = Array.isArray(items)
+      ? items.filter((p) => !String(p?.seriesId || "").startsWith(OVERLAY_PREFIX))
+      : items;
+    return original.call(this, shown, ...rest);
+  };
+  formatter[MARK] = true;
+  chart.options = { ...opts, tooltip: { ...tooltip, formatter } };
+}
+
+/** Redraw a chart, e.g. when upcoming prices arrived from the integration. */
+function refreshChart(chart) {
+  if (chart.isConnected && Array.isArray(chart.data)) chart.data = [...chart.data];
 }
 
 function patchChartBase(cls) {
@@ -632,18 +1041,23 @@ function patchChartBase(cls) {
     try {
       const card = hostCard(this);
       if (card) queueMicrotask(() => decorateHeader(card));
-      if (changed?.has?.("data") && card) {
-        const cfg = cardConfig(card);
-        const style = cfg?.[LINE_KEY] ?? lineStyleFor(this);
-        let data = this.data;
-        if (style && style !== "smooth") data = styleSeries(data, style);
-        if (Array.isArray(cfg?.[FORECAST_KEY])) {
-          data = withForecast(data, cfg[FORECAST_KEY], this.hass || card.hass, style);
+      const cfg = card && cardConfig(card);
+      const style = cfg?.[LINE_KEY] ?? (card ? lineStyleFor(this) : null);
+      if (card && style) {
+        if (changed?.has?.("options")) wrapTooltip(this);
+        if (changed?.has?.("data") && Array.isArray(this.data)) {
+          const hass = this.hass || card.hass;
+          let data = this.data.filter((s) => !isOwnSeries(s));
+          if (style !== "smooth") data = styleSeries(data, style);
+          if (Array.isArray(cfg?.[FORECAST_KEY])) {
+            data = withForecast(data, cfg[FORECAST_KEY], hass, style, () => refreshChart(this));
+          }
+          if (cfg?.[OVERLAY_KEY]) data = withOverlays(data, cfg[OVERLAY_KEY], style);
+          this.data = data;
         }
-        if (data !== this.data) this.data = data;
       }
     } catch (e) {
-      console.warn(TAG, "could not apply line style", e);
+      console.warn(TAG, "could not adjust the price graph", e);
     }
     return original?.call(this, changed);
   };
@@ -665,8 +1079,8 @@ function cardConfig(card) {
 function formatPrice(hass, stateObj) {
   const value = Number(stateObj?.state);
   if (!stateObj || !Number.isFinite(value)) return "—";
-  const lang = hass?.locale?.language || hass?.language || "en";
-  const num = new Intl.NumberFormat(lang, {
+  const locale = lang(hass);
+  const text = new Intl.NumberFormat(locale, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 3,
   }).format(value);
@@ -674,7 +1088,7 @@ function formatPrice(hass, stateObj) {
   const m = unit.match(/^([A-Z]{3})\/(.+)$/);
   if (m) {
     try {
-      const symbol = new Intl.NumberFormat(lang, {
+      const symbol = new Intl.NumberFormat(locale, {
         style: "currency",
         currency: m[1],
         currencyDisplay: "narrowSymbol",
@@ -686,7 +1100,7 @@ function formatPrice(hass, stateObj) {
       /* keep unit as is */
     }
   }
-  return `${num} ${unit}`.trim();
+  return `${text} ${unit}`.trim();
 }
 
 const CHIP_STYLE =
@@ -695,6 +1109,12 @@ const CHIP_STYLE =
   "line-height:20px;letter-spacing:normal;color:var(--primary-text-color);" +
   "padding:var(--ha-space-1,4px) var(--ha-space-2,8px);" +
   "border-radius:var(--ha-border-radius-md,8px);border:1px solid var(--divider-color);";
+
+const LEVEL_COLORS = {
+  good: "var(--success-color, #43a047)",
+  mid: "var(--warning-color, #ffa600)",
+  bad: "var(--error-color, #db4437)",
+};
 
 function decorateHeader(card) {
   try {
@@ -733,11 +1153,14 @@ function decorateHeader(card) {
       const value = formatPrice(hass, stateObj);
       if (text.textContent !== value) text.textContent = value;
       let title = item.tooltip || item.name || "";
-      const level = item.colored ? priceLevel(card, hass, item, Number(stateObj?.state)) : null;
+      const current = Number(stateObj?.state);
+      const stats = item.colored ? todayStats(card, hass, item, current) : null;
+      const level = stats ? levelFor(current, stats, item.better, item.threshold ?? 0.1) : null;
       if (level) {
-        chip.style.borderColor = level.color;
-        chip.style.background = `color-mix(in srgb, ${level.color} 14%, transparent)`;
-        title += ` — ${item.todayAvgLabel || "average today"}: ${formatPrice(hass, { ...stateObj, state: level.avg })}`;
+        const color = LEVEL_COLORS[level];
+        chip.style.borderColor = color;
+        chip.style.background = `color-mix(in srgb, ${color} 14%, transparent)`;
+        title += ` — ${item.todayAvgLabel || "average today"}: ${formatPrice(hass, { ...stateObj, state: stats.avg })}`;
       } else {
         chip.style.borderColor = "var(--divider-color)";
         chip.style.background = "";
@@ -751,74 +1174,82 @@ function decorateHeader(card) {
   }
 }
 
-/* Today's average per sensor, for colouring the current price. */
-// Today's average per sensor. With a forecast sensor the whole day is known
-// (past and upcoming prices), otherwise the recorded prices since midnight
-// are used. Refreshed every 15 minutes.
-const TODAY_AVG = new Map(); // entity -> { day, avg, at, pending }
-
-function localMidnight() {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d.getTime();
+/**
+ * How favourable the current price is compared with today: "good", "mid" or
+ * "bad". The difference with the average is measured against the average
+ * itself or, when prices are close to zero (where a relative difference
+ * explodes), against half of today's price range, whichever is larger.
+ */
+function levelFor(current, stats, better, threshold) {
+  if (!stats || !Number.isFinite(current) || !Number.isFinite(stats.avg)) return null;
+  const halfRange =
+    Number.isFinite(stats.min) && Number.isFinite(stats.max) ? (stats.max - stats.min) / 2 : 0;
+  const scale = Math.max(Math.abs(stats.avg), halfRange);
+  if (!(scale > 0)) return null;
+  let rel = (current - stats.avg) / scale;
+  if (better !== "high") rel = -rel; // positive = favourable
+  if (rel >= threshold) return "good";
+  if (rel <= -threshold) return "bad";
+  return "mid";
 }
 
-function forecastTodayAverage(hass, item, current) {
-  if (!item.forecast) return null;
-  const points = forecastPoints(hass?.states?.[item.forecast]);
-  const start = localMidnight();
-  const end = start + 86400000;
-  const today = points.filter(([t]) => t >= start && t < end);
-  if (!today.length) return null;
-  const factor = forecastScale(today, current);
-  return today.reduce((sum, [, v]) => sum + v * factor, 0) / today.length;
+function statsOf(values) {
+  if (!values.length) return null;
+  return {
+    avg: values.reduce((a, b) => a + b, 0) / values.length,
+    min: Math.min(...values),
+    max: Math.max(...values),
+  };
 }
 
-function priceLevel(card, hass, item, current) {
+// Today's prices per sensor from the recorder (used without a forecast):
+// entity -> { day, stats, at, pending }. Refreshed every 15 minutes.
+const TODAY_STATS = new Map();
+
+/**
+ * Today's average, lowest and highest price. With a forecast the whole day
+ * is known (past and upcoming prices), otherwise the recorded prices since
+ * midnight are used.
+ */
+function todayStats(card, hass, item, current) {
   if (!Number.isFinite(current)) return null;
-  let avg = forecastTodayAverage(hass, item, current);
-  if (avg == null) {
-    const day = localMidnight();
-    const cached = TODAY_AVG.get(item.entity);
-    const fresh = cached && cached.day === day && cached.at && Date.now() - cached.at < 15 * 60000;
-    if (!fresh && !cached?.pending) {
-      TODAY_AVG.set(item.entity, { ...(cached || {}), pending: true });
-      hass
-        .callWS({
-          type: "recorder/statistics_during_period",
-          start_time: new Date(day).toISOString(),
-          statistic_ids: [item.entity],
-          period: "hour",
-          types: ["mean"],
-        })
-        .then((res) => {
-          const vals = (res?.[item.entity] || []).map((r) => r.mean).filter((v) => typeof v === "number");
-          const a = vals.length ? vals.reduce((x, y) => x + y, 0) / vals.length : null;
-          TODAY_AVG.set(item.entity, { day, avg: a, at: Date.now(), pending: false });
-          decorateHeader(card);
-        })
-        .catch(() => TODAY_AVG.set(item.entity, { day, avg: null, at: Date.now(), pending: false }));
+  const start = localMidnight();
+  if (item.forecast) {
+    const points = forecastFor(hass, item.forecast, () => decorateHeader(card));
+    const today = points.filter(([t]) => t >= start && t < start + DAY);
+    if (today.length) {
+      const factor = forecastScale(today, current);
+      return statsOf(today.map(([, v]) => v * factor));
     }
-    avg = cached?.day === day ? cached.avg : null;
   }
-  if (avg == null || !avg) return null;
-  // Relative difference, positive = favourable.
-  let rel = (current - avg) / Math.abs(avg);
-  if (item.better !== "high") rel = -rel;
-  const color =
-    rel >= 0.1 ? "var(--success-color, #43a047)"
-    : rel <= -0.1 ? "var(--error-color, #db4437)"
-    : "var(--warning-color, #ffa600)";
-  return { color, avg };
+  const cached = TODAY_STATS.get(item.entity);
+  const fresh = cached && cached.day === start && cached.at && Date.now() - cached.at < 15 * 60000;
+  if (!fresh && !cached?.pending && hass?.callWS) {
+    TODAY_STATS.set(item.entity, { ...(cached || {}), pending: true });
+    hass
+      .callWS({
+        type: "recorder/statistics_during_period",
+        start_time: new Date(start).toISOString(),
+        statistic_ids: [item.entity],
+        period: "hour",
+        types: ["mean"],
+      })
+      .then((res) => {
+        const vals = (res?.[item.entity] || []).map((r) => r.mean).filter((v) => typeof v === "number");
+        TODAY_STATS.set(item.entity, { day: start, stats: statsOf(vals), at: Date.now(), pending: false });
+        decorateHeader(card);
+      })
+      .catch(() => TODAY_STATS.set(item.entity, { day: start, stats: null, at: Date.now(), pending: false }));
+  }
+  return cached?.day === start ? cached.stats : null;
 }
 
 /* "Auto (fine)": choose the resolution from the selected date range. */
 const FINE_STATE = new WeakMap(); // card -> { unsub }
 
-function finePeriod(start, end) {
-  const now = Date.now();
-  const days = ((end ? end.getTime() : now) - start.getTime()) / 86400000;
-  const ageDays = (now - start.getTime()) / 86400000;
+function finePeriod(start, end, now = Date.now()) {
+  const days = ((end ? end.getTime() : now) - start.getTime()) / DAY;
+  const ageDays = (now - start.getTime()) / DAY;
   // 5-minute statistics are kept as long as the recorder keeps history
   // (purge_keep_days, 10 days by default).
   if (days <= 7.5 && ageDays <= 10) return "5minute";
@@ -918,35 +1349,24 @@ function patchStatisticsCard(cls) {
  *  - "You": what you actually paid / received per kWh = cost ÷ energy, from
  *    the same statistics the Energy dashboard uses (weighted by when you
  *    used or exported energy);
- *  - "Market": the plain average of the price sensor over the period.
+ *  - "Market": the plain average of the price sensor over the period, plus
+ *    the surcharge from the options;
+ *  - "Timing": share of your import in the cheapest and most expensive
+ *    hours of each day.
  * ------------------------------------------------------------------------ */
 
 function currencySymbol(hass) {
   const code = hass?.config?.currency;
   if (!code) return "";
   try {
-    const lang = hass?.locale?.language || hass?.language || "en";
     return (
-      new Intl.NumberFormat(lang, { style: "currency", currency: code, currencyDisplay: "narrowSymbol" })
+      new Intl.NumberFormat(lang(hass), { style: "currency", currency: code, currencyDisplay: "narrowSymbol" })
         .formatToParts(0)
         .find((p) => p.type === "currency")?.value || code
     );
   } catch (e) {
     return code;
   }
-}
-
-function sumChange(stats) {
-  if (!Array.isArray(stats)) return null;
-  let total = 0;
-  let any = false;
-  for (const s of stats) {
-    if (typeof s?.change === "number") {
-      total += s.change;
-      any = true;
-    }
-  }
-  return any ? total : null;
 }
 
 /** Grid import/export energy and cost statistic ids from the energy prefs. */
@@ -987,7 +1407,8 @@ function gridStatIds(prefs, info) {
  * Money per kWh over the period. Only periods in which both the energy and
  * the cost statistic have a value, and energy actually flowed, are counted,
  * so a sensor that was added or repaired halfway through the period does not
- * skew the result.
+ * skew the result. The sign of the cost is kept: at a negative price the
+ * cost (or compensation) of that period is negative.
  */
 function paidAverage(data, flows) {
   let energy = 0;
@@ -1006,14 +1427,14 @@ function paidAverage(data, flows) {
       const c = costByStart.get(r?.start);
       if (typeof e !== "number" || e <= 0 || typeof c !== "number") continue;
       energy += e;
-      money += Math.abs(c);
+      money += c;
     }
   }
   return energy > 0 ? { avg: money / energy, energy } : null;
 }
 
-function marketPeriod(start, end) {
-  const days = ((end || new Date()) - start) / 86400000;
+function marketPeriod(start, end, now = new Date()) {
+  const days = ((end || now) - start) / DAY;
   if (days <= 35) return "hour";
   if (days <= 400) return "day";
   return "month";
@@ -1039,6 +1460,60 @@ async function marketAverages(hass, start, end, ids) {
 }
 
 /**
+ * Share of the import energy in the cheapest and the most expensive quarter
+ * of the hours of each day. `energy` and `prices` map hour start -> value.
+ */
+function timingShares(energy, prices) {
+  const days = new Map();
+  for (const [t, price] of prices) {
+    if (typeof price !== "number") continue;
+    const d = localMidnight(t);
+    if (!days.has(d)) days.set(d, []);
+    days.get(d).push([t, price]);
+  }
+  let cheap = 0;
+  let expensive = 0;
+  let total = 0;
+  for (const hours of days.values()) {
+    if (hours.length < 4) continue;
+    hours.sort((a, b) => a[1] - b[1]);
+    const k = Math.max(1, Math.round(hours.length / 4));
+    hours.forEach(([t], i) => {
+      const e = energy.get(t) || 0;
+      total += e;
+      if (i < k) cheap += e;
+      if (i >= hours.length - k) expensive += e;
+    });
+  }
+  return total > 0 ? { cheap: cheap / total, expensive: expensive / total, energy: total } : null;
+}
+
+async function timingData(hass, start, end, energyIds, priceId) {
+  const ids = [...new Set(energyIds.filter(Boolean))];
+  if (!ids.length || !priceId) return null;
+  const res = await hass.callWS({
+    type: "recorder/statistics_during_period",
+    start_time: start.toISOString(),
+    ...(end && { end_time: end.toISOString() }),
+    statistic_ids: [...ids, priceId],
+    period: "hour",
+    types: ["change", "mean"],
+    units: { energy: "kWh" },
+  });
+  const energy = new Map();
+  for (const id of ids) {
+    for (const r of res?.[id] || []) {
+      if (typeof r.change === "number") energy.set(toMs(r.start), (energy.get(toMs(r.start)) || 0) + r.change);
+    }
+  }
+  const prices = new Map();
+  for (const r of res?.[priceId] || []) {
+    if (typeof r.mean === "number") prices.set(toMs(r.start), r.mean);
+  }
+  return timingShares(energy, prices);
+}
+
+/**
  * Result compared with the market average, per direction and in total.
  * Import: (market − you) × kWh bought. Export: (you − market) × kWh sold.
  * Positive means better than the market average.
@@ -1056,7 +1531,7 @@ function savings(r) {
   return { import: imp, export: exp, total };
 }
 
-class EnergyPriceAverageCard extends HTMLElement {
+class EnergyPriceAverageCard extends (globalThis.HTMLElement ?? class {}) {
   setConfig(config) {
     // Lovelace may call setConfig again on an existing card (for example when
     // a view is rebuilt). Keep the last data and recalculate instead of
@@ -1114,6 +1589,7 @@ class EnergyPriceAverageCard extends HTMLElement {
     clearTimeout(this._retryMarket);
     const run = (this._run = (this._run || 0) + 1);
     const c = this._config || {};
+    const surcharge = c.surcharge || {};
     let result;
     let marketFailed = false;
     try {
@@ -1128,6 +1604,8 @@ class EnergyPriceAverageCard extends HTMLElement {
         hasExport: !!c.export_entity || flows.to.length > 0,
         importMarket: flows.fixedImport,
         exportMarket: flows.fixedExport,
+        surcharged: false,
+        timing: null,
       };
       if (data?.start && (c.import_entity || c.export_entity)) {
         try {
@@ -1135,11 +1613,30 @@ class EnergyPriceAverageCard extends HTMLElement {
             c.import_entity,
             c.export_entity,
           ]);
-          if (c.import_entity) result.importMarket = market[c.import_entity] ?? result.importMarket;
-          if (c.export_entity) result.exportMarket = market[c.export_entity] ?? result.exportMarket;
+          // The surcharge only applies to a price sensor, not to a fixed price.
+          const withSurcharge = (value, extra) => {
+            if (value == null) return null;
+            if (extra) result.surcharged = true;
+            return value + num(extra);
+          };
+          if (c.import_entity) {
+            result.importMarket = withSurcharge(market[c.import_entity], surcharge.import) ?? result.importMarket;
+          }
+          if (c.export_entity) {
+            result.exportMarket = withSurcharge(market[c.export_entity], surcharge.export) ?? result.exportMarket;
+          }
         } catch (e) {
           marketFailed = true;
           console.warn(TAG, "could not load market average, retrying", e);
+        }
+      }
+      if (c.show_timing !== false && data?.start && c.import_entity && marketPeriod(data.start, data.end) === "hour") {
+        try {
+          result.timing = await timingData(
+            this._hass, data.start, data.end, flows.from.map((f) => f.energy), c.import_entity
+          );
+        } catch (e) {
+          console.warn(TAG, "could not calculate timing", e);
         }
       }
     } catch (e) {
@@ -1158,32 +1655,33 @@ class EnergyPriceAverageCard extends HTMLElement {
 
   _fmt(value) {
     if (value == null || !Number.isFinite(value)) return "—";
-    const lang = this._hass?.locale?.language || this._hass?.language || "en";
-    const num = new Intl.NumberFormat(lang, {
+    const text = new Intl.NumberFormat(lang(this._hass), {
       minimumFractionDigits: 3,
       maximumFractionDigits: 3,
     }).format(value);
-    return `${num} ${currencySymbol(this._hass)}/kWh`.trim();
+    return `${text} ${currencySymbol(this._hass)}/kWh`.trim();
+  }
+
+  _pct(value, signed = false) {
+    return new Intl.NumberFormat(lang(this._hass), {
+      style: "percent",
+      maximumFractionDigits: signed ? 1 : 0,
+      ...(signed && { signDisplay: "exceptZero" }),
+    }).format(value);
   }
 
   _diff(you, market, higherIsBetter) {
     if (you == null || market == null || !market) return "";
-    const pct = ((you - market) / Math.abs(market)) * 100;
-    const good = higherIsBetter ? pct >= 0 : pct <= 0;
-    const lang = this._hass?.locale?.language || this._hass?.language || "en";
-    const txt = new Intl.NumberFormat(lang, {
-      maximumFractionDigits: 1,
-      signDisplay: "exceptZero",
-    }).format(pct);
-    return `<span class="${good ? "good" : "bad"}">${txt}%</span>`;
+    const rel = (you - market) / Math.abs(market);
+    const good = higherIsBetter ? rel >= 0 : rel <= 0;
+    return `<span class="${good ? "good" : "bad"}">${this._pct(rel, true)}</span>`;
   }
 
   /** Signed money amount, e.g. "+€0,06" / "−€0,19". */
   _money(amount) {
-    const lang = this._hass?.locale?.language || this._hass?.language || "en";
     const currency = this._hass?.config?.currency;
     try {
-      return new Intl.NumberFormat(lang, {
+      return new Intl.NumberFormat(lang(this._hass), {
         ...(currency ? { style: "currency", currency } : { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
         signDisplay: "exceptZero",
       }).format(amount);
@@ -1193,16 +1691,23 @@ class EnergyPriceAverageCard extends HTMLElement {
   }
 
   _total(amount, L) {
-    const esc = (t) => String(t ?? "").replace(/[&<>"]/g, (ch) => `&#${ch.charCodeAt(0)};`);
     return `
-      <div class="savings" title="${esc(L.savingsHelp)}">
+      <div class="footer" title="${esc(L.savingsHelp)}">
         <span>${esc(L.result)}</span>
-        <span class="${amount >= 0 ? "good" : "bad"}">${this._money(amount)}</span>
+        <span class="value ${amount >= 0 ? "good" : "bad"}">${this._money(amount)}</span>
+      </div>`;
+  }
+
+  _timing(timing, L) {
+    return `
+      <div class="footer" title="${esc(L.timingHelp)}">
+        <span>${esc(L.timing)}</span>
+        <span class="value">${this._pct(timing.cheap)} ${esc(L.cheapHours)}<span class="sep">·</span>${this._pct(timing.expensive)} ${esc(L.expensiveHours)}</span>
       </div>`;
   }
 
   _row(color, name, you, market, higherIsBetter, amount) {
-    // Percentage and euro amount side by side on one line below the price.
+    // Percentage and money amount side by side on one line below the price.
     const parts = [
       this._diff(you, market, higherIsBetter),
       amount != null ? `<span class="${amount >= 0 ? "good" : "bad"}">${this._money(amount)}</span>` : "",
@@ -1210,7 +1715,7 @@ class EnergyPriceAverageCard extends HTMLElement {
     const sub = parts.length ? `<span class="diff">${parts.join('<span class="sep">·</span>')}</span>` : "";
     return `
       <div class="row">
-        <div class="name"><span class="dot" style="background:${color}"></span>${name}</div>
+        <div class="name"><span class="dot" style="background:${esc(color)}"></span>${esc(name)}</div>
         <div class="you">${this._fmt(you)}${sub}</div>
         <div class="market">${this._fmt(market)}</div>
       </div>`;
@@ -1221,19 +1726,20 @@ class EnergyPriceAverageCard extends HTMLElement {
     const c = this._config;
     const L = c.labels || {};
     const r = this._result;
-    const esc = (t) => String(t ?? "").replace(/[&<>"]/g, (ch) => `&#${ch.charCodeAt(0)};`);
     const money = c.show_savings !== false;
+    const marketHelp = r?.surcharged ? `${L.marketHelp}, ${L.surchargeHelp}` : L.marketHelp;
     const body = !r
       ? `<div class="loading">…</div>`
       : `
         <div class="row head">
           <div></div>
           <div class="you" title="${esc(L.youHelp)}">${esc(L.you)}</div>
-          <div class="market" title="${esc(L.marketHelp)}">${esc(L.market)}</div>
+          <div class="market" title="${esc(marketHelp)}">${esc(L.market)}</div>
         </div>
-        ${this._row(c.colors?.import, esc(L.imp), r.importPaid, r.importMarket, false, money ? r.savings?.import : null)}
-        ${r.hasExport ? this._row(c.colors?.export, esc(L.exp), r.exportPaid, r.exportMarket, true, money ? r.savings?.export : null) : ""}
-        ${money && r.savings?.total != null ? this._total(r.savings.total, L) : ""}`;
+        ${this._row(c.colors?.import, L.imp, r.importPaid, r.importMarket, false, money ? r.savings?.import : null)}
+        ${r.hasExport ? this._row(c.colors?.export, L.exp, r.exportPaid, r.exportMarket, true, money ? r.savings?.export : null) : ""}
+        ${money && r.savings?.total != null ? this._total(r.savings.total, L) : ""}
+        ${r.timing ? this._timing(r.timing, L) : ""}`;
     this.shadowRoot.innerHTML = `
       <style>
         ha-card { height: 100%; }
@@ -1255,9 +1761,9 @@ class EnergyPriceAverageCard extends HTMLElement {
         .good { color: var(--success-color, #43a047); }
         .bad { color: var(--error-color, #db4437); }
         .loading { color: var(--secondary-text-color); }
-        .savings { display: flex; justify-content: space-between; align-items: baseline; gap: 8px;
+        .footer { display: flex; justify-content: space-between; align-items: baseline; gap: 8px;
           margin-top: 6px; padding-top: 10px; border-top: 1px solid var(--divider-color); cursor: help; }
-        .savings span:last-child { font-weight: var(--ha-font-weight-medium, 500); }
+        .footer .value { font-weight: var(--ha-font-weight-medium, 500); text-align: end; }
       </style>
       <ha-card>
         ${c.title ? `<div class="card-header">${esc(c.title)}</div>` : ""}
@@ -1282,7 +1788,28 @@ function defineAverageCard(reg, get) {
 }
 
 /* Start: hook the registry now and whenever the frontend replaces it. */
-installRegistryHooks();
-// Keep checking for a replaced registry for a while after start-up.
-const hookTimer = setInterval(installRegistryHooks, 100);
-setTimeout(() => clearInterval(hookTimer), 120000);
+if (globalThis.window?.customElements) {
+  installRegistryHooks();
+  // Keep checking for a replaced registry for a while after start-up.
+  const hookTimer = setInterval(installRegistryHooks, 100);
+  setTimeout(() => clearInterval(hookTimer), 120000);
+}
+
+// For the tests (tests/js); ignored by the browser, which imports the module
+// only for its side effects.
+export {
+  cheapestHourSet,
+  finePeriod,
+  forecastPoints,
+  forecastScale,
+  gridStatIds,
+  levelFor,
+  marketPeriod,
+  paidAverage,
+  runData,
+  savings,
+  timeWeightedMean,
+  timingShares,
+  withForecast,
+  withOverlays,
+};

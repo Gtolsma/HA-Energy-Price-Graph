@@ -34,16 +34,34 @@
               "minmax": "Also draws the lowest and highest price within each period."
             }
           },
+          "markers": {
+            "name": "Markers in the graph",
+            "description": "Extra lines and highlighted areas in the price graph.",
+            "data": {
+              "show_now_line": "Show a line at the current time",
+              "show_average_line": "Show the average price as a line",
+              "cheapest_hours": "Highlight the cheapest hours per day",
+              "highlight_negative": "Highlight negative prices"
+            },
+            "data_description": {
+              "show_now_line": "Vertical dashed line at the current time when the selected period includes now.",
+              "show_average_line": "Horizontal dotted line at the average import price of the period shown (including upcoming prices).",
+              "cheapest_hours": "Shades the N cheapest hours of each day (0 = off), for example to plan the washing machine or charging. Only for days of which (almost) all prices are known, so with a forecast also today and tomorrow.",
+              "highlight_negative": "Shades the area below zero and draws a zero line when the price is negative."
+            }
+          },
           "current": {
             "name": "Current price",
             "description": "Chips with the current price in the header of the graph.",
             "data": {
               "show_current": "Show current price",
-              "show_price_colors": "Colour the current price"
+              "show_price_colors": "Colour the current price",
+              "price_color_threshold": "Margin around the average"
             },
             "data_description": {
               "show_current": "Small chips in the card header with the current price.",
-              "show_price_colors": "Green when the current price is favourable compared to today's average price (the whole day when a forecast sensor is set, otherwise the prices so far today) (low for import and gas, high for export), orange around the average, red when unfavourable."
+              "show_price_colors": "Green when the current price is favourable compared to today's average price (the whole day when a forecast is available, otherwise the prices so far today) (low for import and gas, high for export), orange around the average, red when unfavourable.",
+              "price_color_threshold": "How far the price may differ from today's average and still count as average (orange). Measured against the average price or, when prices are close to zero, against half of today's price range."
             }
           },
           "average": {
@@ -51,35 +69,49 @@
             "description": "Card below Energy distribution on the Electricity tab.",
             "data": {
               "show_average": "Show average price",
-              "show_savings": "Show result in euros"
+              "show_savings": "Show result as an amount",
+              "show_timing": "Show timing",
+              "import_surcharge": "Surcharge on market import price (per kWh)",
+              "export_surcharge": "Surcharge on market export price (per kWh)"
             },
             "data_description": {
               "show_average": "Card below Energy distribution on the Electricity tab with your average import and export price for the selected period, next to the average market price.",
-              "show_savings": "Shows in euros how much better or worse you did than the market average, for import and export separately and in total."
+              "show_savings": "Shows how much better or worse you did than the market average, in your currency, for import and export separately and in total.",
+              "show_timing": "Share of your import in the cheapest and most expensive quarter of the hours of each day (for periods up to 35 days). With evenly spread use both are about 25 %.",
+              "import_surcharge": "Added to the average of the import price sensor, for example energy tax and your supplier's markup, when your costs include them but the price sensor does not. 0 = none.",
+              "export_surcharge": "Added to the average of the export price sensor (can be negative, for example a feed-in fee). 0 = none."
             }
           },
           "gas": {
             "name": "Gas",
-            "description": "Price graph on the Gas tab.",
+            "description": "Gas price graph.",
             "data": {
-              "show_gas": "Show gas price"
+              "show_gas": "Show gas price",
+              "gas_views": "Show the gas price graph on tabs"
             },
             "data_description": {
-              "show_gas": "Price graph on the Gas tab, using the gas price sensor from your energy settings."
+              "show_gas": "Price graph using the gas price sensor from your energy settings.",
+              "gas_views": "Tabs of the Energy dashboard where the gas price graph is shown."
             }
           },
           "forecast": {
             "name": "Forecast (upcoming prices)",
-            "description": "Choose a sensor that has the upcoming prices in its attributes (for example Nord Pool, ENTSO-e, Zonneplan or Frank Energie). Upcoming prices are drawn as a dashed line; open tomorrow in the date picker to see tomorrow.",
+            "description": "Upcoming prices are drawn as a dashed line; open tomorrow in the date picker to see tomorrow. They are read from the attributes of a sensor (for example Nord Pool, ENTSO-e, Zonneplan or Frank Energie) or, for Nord Pool, Tibber, EnergyZero and easyEnergy in Home Assistant, from the action of the integration.",
             "data": {
+              "forecast_auto": "Use the price sensor itself",
               "forecast_import_entity": "Forecast for import price",
               "forecast_export_entity": "Forecast for export price",
-              "forecast_gas_entity": "Forecast for gas price"
+              "forecast_gas_entity": "Forecast for gas price",
+              "forecast_attribute": "Attribute with the upcoming prices",
+              "forecast_value_key": "Field with the price"
             },
             "data_description": {
-              "forecast_import_entity": "Leave empty for no forecast line.",
-              "forecast_export_entity": "Leave empty for no forecast line.",
-              "forecast_gas_entity": "Leave empty for no forecast line."
+              "forecast_auto": "When no forecast sensor is chosen below, look for upcoming prices on the price sensor itself (attributes or integration action).",
+              "forecast_import_entity": "Leave empty to use the price sensor itself (see above) or for no forecast line.",
+              "forecast_export_entity": "Leave empty to use the price sensor itself (see above) or for no forecast line.",
+              "forecast_gas_entity": "Leave empty to use the price sensor itself (see above) or for no forecast line.",
+              "forecast_attribute": "Only read this attribute, for example raw_tomorrow or prices. Leave empty to search all attributes.",
+              "forecast_value_key": "Name of the field with the price in each item, for example value or price_incl_vat. Leave empty to detect it."
             }
           },
           "advanced": {
@@ -106,7 +138,8 @@
       }
     },
     "error": {
-      "no_views": "Select at least one tab."
+      "no_views": "Select at least one tab.",
+      "no_gas_views": "Select at least one tab for the gas price graph, or turn the gas price off."
     }
   },
   "selector": {
@@ -125,12 +158,62 @@
         "overview": "Summary"
       }
     },
+    "gas_views": {
+      "options": {
+        "gas": "Gas",
+        "overview": "Summary"
+      }
+    },
     "line_style": {
       "options": {
         "straight": "Straight",
         "stepped": "Stepped (exact)",
         "smooth": "Smooth"
       }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "import_paid_today": {
+        "name": "Average import price paid today"
+      },
+      "import_market_today": {
+        "name": "Average market import price today"
+      },
+      "export_paid_today": {
+        "name": "Average export price received today"
+      },
+      "export_market_today": {
+        "name": "Average market export price today"
+      },
+      "result_today": {
+        "name": "Result vs market today"
+      },
+      "import_paid_month": {
+        "name": "Average import price paid this month"
+      },
+      "import_market_month": {
+        "name": "Average market import price this month"
+      },
+      "export_paid_month": {
+        "name": "Average export price received this month"
+      },
+      "export_market_month": {
+        "name": "Average market export price this month"
+      },
+      "result_month": {
+        "name": "Result vs market this month"
+      }
+    }
+  },
+  "issues": {
+    "frontend_not_active": {
+      "title": "The price graph could not be added to the Energy dashboard",
+      "description": "Energy Price Graph could not extend the Energy dashboard in your browser. This usually happens after a Home Assistant update (now {ha_version}) changed the internal frontend code the integration relies on. The Energy dashboard itself keeps working, just without the price graph.\n\nDetails: {error}\n\nCheck for an update of Energy Price Graph in HACS, or open an issue at {issue_tracker}. This message disappears by itself as soon as the price graph works again."
+    },
+    "no_price_sensor": {
+      "title": "No price sensor for the price graph",
+      "description": "Energy Price Graph found no electricity price sensor in your energy settings, so no price graph is shown. Set one in Settings → Dashboards → Energy → Electricity grid (costs: \"Use an entity with current price\"), or choose a sensor in the Advanced section of the integration options. With a fixed price you can ignore this message: the average price card still works."
     }
   }
 }

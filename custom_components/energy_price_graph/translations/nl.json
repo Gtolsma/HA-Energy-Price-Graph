@@ -34,16 +34,34 @@
               "minmax": "Tekent ook de laagste en hoogste prijs binnen elke periode."
             }
           },
+          "markers": {
+            "name": "Markeringen in de grafiek",
+            "description": "Extra lijnen en gemarkeerde gebieden in de prijsgrafiek.",
+            "data": {
+              "show_now_line": "Lijn op het huidige tijdstip tonen",
+              "show_average_line": "Gemiddelde prijs als lijn tonen",
+              "cheapest_hours": "Goedkoopste uren per dag markeren",
+              "highlight_negative": "Negatieve prijzen markeren"
+            },
+            "data_description": {
+              "show_now_line": "Verticale stippellijn op het huidige tijdstip als de gekozen periode nu bevat.",
+              "show_average_line": "Horizontale stippellijn op de gemiddelde inkoopprijs van de getoonde periode (inclusief komende prijzen).",
+              "cheapest_hours": "Kleurt de N goedkoopste uren van elke dag (0 = uit), bijvoorbeeld om de wasmachine of het laden te plannen. Alleen voor dagen waarvan (bijna) alle prijzen bekend zijn, dus met een voorspelling ook vandaag en morgen.",
+              "highlight_negative": "Kleurt het gebied onder nul en tekent een nullijn als de prijs negatief is."
+            }
+          },
           "current": {
             "name": "Huidige prijs",
             "description": "Blokjes met de huidige prijs rechtsboven in de grafiek.",
             "data": {
               "show_current": "Huidige prijs tonen",
-              "show_price_colors": "Huidige prijs kleuren"
+              "show_price_colors": "Huidige prijs kleuren",
+              "price_color_threshold": "Marge rond het gemiddelde"
             },
             "data_description": {
               "show_current": "Kleine blokjes rechtsboven in de kaart met de huidige prijs.",
-              "show_price_colors": "Groen als de huidige prijs gunstig is ten opzichte van de gemiddelde prijs van vandaag (de hele dag als er een voorspellingssensor is ingesteld, anders de prijzen tot nu toe) (laag voor inkoop en gas, hoog voor teruglevering), oranje rond het gemiddelde, rood als hij ongunstig is."
+              "show_price_colors": "Groen als de huidige prijs gunstig is ten opzichte van de gemiddelde prijs van vandaag (de hele dag als er een voorspelling is, anders de prijzen tot nu toe) (laag voor inkoop en gas, hoog voor teruglevering), oranje rond het gemiddelde, rood als hij ongunstig is.",
+              "price_color_threshold": "Hoeveel de prijs mag afwijken van het gemiddelde van vandaag en toch als gemiddeld (oranje) telt. Gemeten ten opzichte van de gemiddelde prijs of, als de prijzen dicht bij nul liggen, ten opzichte van de helft van de prijsspreiding van vandaag."
             }
           },
           "average": {
@@ -51,35 +69,49 @@
             "description": "Kaart onder Energieverdeling op het tabblad Elektriciteit.",
             "data": {
               "show_average": "Gemiddelde prijs tonen",
-              "show_savings": "Resultaat in euro's tonen"
+              "show_savings": "Resultaat als bedrag tonen",
+              "show_timing": "Timing tonen",
+              "import_surcharge": "Opslag op marktprijs inkoop (per kWh)",
+              "export_surcharge": "Opslag op marktprijs teruglevering (per kWh)"
             },
             "data_description": {
               "show_average": "Kaart onder Energieverdeling op het tabblad Elektriciteit met je gemiddelde inkoop- en terugleverprijs voor de gekozen periode, naast de gemiddelde marktprijs.",
-              "show_savings": "Toont in euro's hoeveel beter of slechter je het deed dan het marktgemiddelde, voor inkoop en teruglevering apart en in totaal."
+              "show_savings": "Toont hoeveel beter of slechter je het deed dan het marktgemiddelde, in je valuta, voor inkoop en teruglevering apart en in totaal.",
+              "show_timing": "Aandeel van je inkoop in het goedkoopste en duurste kwart van de uren van elke dag (voor periodes tot 35 dagen). Bij gelijkmatig verbruik zijn beide ongeveer 25 %.",
+              "import_surcharge": "Wordt opgeteld bij het gemiddelde van de inkoopprijssensor, bijvoorbeeld energiebelasting en de opslag van je leverancier, als je kosten die wel bevatten maar de prijssensor niet. 0 = geen.",
+              "export_surcharge": "Wordt opgeteld bij het gemiddelde van de terugleverprijssensor (mag negatief zijn, bijvoorbeeld terugleverkosten). 0 = geen."
             }
           },
           "gas": {
             "name": "Gas",
-            "description": "Prijsgrafiek op het tabblad Gas.",
+            "description": "Gasprijsgrafiek.",
             "data": {
-              "show_gas": "Gasprijs tonen"
+              "show_gas": "Gasprijs tonen",
+              "gas_views": "Gasprijsgrafiek tonen op tabbladen"
             },
             "data_description": {
-              "show_gas": "Prijsgrafiek op het tabblad Gas, met de gasprijssensor uit je energie-instellingen."
+              "show_gas": "Prijsgrafiek met de gasprijssensor uit je energie-instellingen.",
+              "gas_views": "Tabbladen van het Energie-dashboard waarop de gasprijsgrafiek verschijnt."
             }
           },
           "forecast": {
             "name": "Voorspelling (komende prijzen)",
-            "description": "Kies een sensor die de komende prijzen in zijn attributen heeft (bijvoorbeeld Nord Pool, ENTSO-e, Zonneplan of Frank Energie). Komende prijzen worden als stippellijn getekend; kies morgen in de datumkiezer om morgen te zien.",
+            "description": "Komende prijzen worden als stippellijn getekend; kies morgen in de datumkiezer om morgen te zien. Ze worden gelezen uit de attributen van een sensor (bijvoorbeeld Nord Pool, ENTSO-e, Zonneplan of Frank Energie) of, voor Nord Pool, Tibber, EnergyZero en easyEnergy in Home Assistant, via de actie van de integratie.",
             "data": {
+              "forecast_auto": "Prijssensor zelf gebruiken",
               "forecast_import_entity": "Voorspelling inkoopprijs",
               "forecast_export_entity": "Voorspelling terugleverprijs",
-              "forecast_gas_entity": "Voorspelling gasprijs"
+              "forecast_gas_entity": "Voorspelling gasprijs",
+              "forecast_attribute": "Attribuut met de komende prijzen",
+              "forecast_value_key": "Veld met de prijs"
             },
             "data_description": {
-              "forecast_import_entity": "Leeg laten voor geen voorspellingslijn.",
-              "forecast_export_entity": "Leeg laten voor geen voorspellingslijn.",
-              "forecast_gas_entity": "Leeg laten voor geen voorspellingslijn."
+              "forecast_auto": "Als hieronder geen voorspellingssensor is gekozen, wordt gezocht naar komende prijzen bij de prijssensor zelf (attributen of actie van de integratie).",
+              "forecast_import_entity": "Leeg laten om de prijssensor zelf te gebruiken (zie hierboven) of voor geen voorspellingslijn.",
+              "forecast_export_entity": "Leeg laten om de prijssensor zelf te gebruiken (zie hierboven) of voor geen voorspellingslijn.",
+              "forecast_gas_entity": "Leeg laten om de prijssensor zelf te gebruiken (zie hierboven) of voor geen voorspellingslijn.",
+              "forecast_attribute": "Alleen dit attribuut lezen, bijvoorbeeld raw_tomorrow of prices. Leeg laten om alle attributen te doorzoeken.",
+              "forecast_value_key": "Naam van het veld met de prijs in elk item, bijvoorbeeld value of price_incl_vat. Leeg laten om het automatisch te herkennen."
             }
           },
           "advanced": {
@@ -106,7 +138,8 @@
       }
     },
     "error": {
-      "no_views": "Kies minstens één tabblad."
+      "no_views": "Kies minstens één tabblad.",
+      "no_gas_views": "Kies minstens één tabblad voor de gasprijsgrafiek, of zet de gasprijs uit."
     }
   },
   "selector": {
@@ -125,12 +158,62 @@
         "overview": "Overzicht"
       }
     },
+    "gas_views": {
+      "options": {
+        "gas": "Gas",
+        "overview": "Overzicht"
+      }
+    },
     "line_style": {
       "options": {
         "straight": "Recht",
         "stepped": "Trapsgewijs (exact)",
         "smooth": "Vloeiend"
       }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "import_paid_today": {
+        "name": "Gemiddelde inkoopprijs betaald vandaag"
+      },
+      "import_market_today": {
+        "name": "Gemiddelde marktprijs inkoop vandaag"
+      },
+      "export_paid_today": {
+        "name": "Gemiddelde terugleverprijs ontvangen vandaag"
+      },
+      "export_market_today": {
+        "name": "Gemiddelde marktprijs teruglevering vandaag"
+      },
+      "result_today": {
+        "name": "Resultaat t.o.v. markt vandaag"
+      },
+      "import_paid_month": {
+        "name": "Gemiddelde inkoopprijs betaald deze maand"
+      },
+      "import_market_month": {
+        "name": "Gemiddelde marktprijs inkoop deze maand"
+      },
+      "export_paid_month": {
+        "name": "Gemiddelde terugleverprijs ontvangen deze maand"
+      },
+      "export_market_month": {
+        "name": "Gemiddelde marktprijs teruglevering deze maand"
+      },
+      "result_month": {
+        "name": "Resultaat t.o.v. markt deze maand"
+      }
+    }
+  },
+  "issues": {
+    "frontend_not_active": {
+      "title": "De prijsgrafiek kon niet aan het Energie-dashboard worden toegevoegd",
+      "description": "Energy Price Graph kon het Energie-dashboard in je browser niet uitbreiden. Dit gebeurt meestal nadat een Home Assistant-update (nu {ha_version}) de interne frontendcode heeft veranderd waar de integratie op leunt. Het Energie-dashboard zelf blijft gewoon werken, alleen zonder prijsgrafiek.\n\nDetails: {error}\n\nKijk in HACS of er een update van Energy Price Graph is, of meld het op {issue_tracker}. Deze melding verdwijnt vanzelf zodra de prijsgrafiek weer werkt."
+    },
+    "no_price_sensor": {
+      "title": "Geen prijssensor voor de prijsgrafiek",
+      "description": "Energy Price Graph heeft geen stroomprijssensor gevonden in je energie-instellingen, dus er wordt geen prijsgrafiek getoond. Stel er een in via Instellingen → Dashboards → Energie → Elektriciteitsnet (kosten: \"Gebruik een entiteit met de huidige prijs\"), of kies een sensor in het onderdeel Geavanceerd van de integratie-opties. Met een vaste prijs kun je deze melding negeren: de kaart met de gemiddelde prijs werkt dan gewoon."
     }
   }
 }

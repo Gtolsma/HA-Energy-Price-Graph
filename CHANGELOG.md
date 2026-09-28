@@ -5,6 +5,37 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-09-28
+
+### Added
+
+- Markers in the price graph: a dashed line at the current time (on by default), a dotted line at the average price, the cheapest hours of each day as a green band (choose how many, off by default) and negative prices as a red area with a zero line (on by default). They are kept out of the tooltip.
+- Upcoming prices for Nord Pool, Tibber, EnergyZero and easyEnergy in Home Assistant core, which offer them through an action instead of sensor attributes. The integration calls the action and caches the result for 15 minutes.
+- The price sensor itself is now used for upcoming prices when no forecast sensor is chosen (option *Use the price sensor itself*, on by default), so Nord Pool, ENTSO-e and similar sensors show their forecast without extra setup.
+- Forecast options to read only one attribute and to name the field with the price, for sensors whose format is not detected.
+- Average price card: *Timing* shows the share of your import in the cheapest and the most expensive quarter of the hours of each day (periods up to 35 days).
+- Average price card: optional surcharge per kWh on the market import and export price (for example energy tax and your supplier's markup), for when your costs include them but the price sensor does not.
+- Sensors with the average import and export price you paid / received, the average market prices and the result compared with the market, for today and this month.
+- The margin for the colour of the current price is now an option (default 10 %).
+- The gas price graph can also be shown on the Summary tab.
+- A repair message when the price graph cannot be added to the Energy dashboard (for example after a Home Assistant update changed the frontend internals). It disappears by itself once the graph works again.
+- A repair message when no price sensor is found in the Energy settings.
+- Diagnostics (options, price sensors found, status of the frontend module) to attach to bug reports.
+- German translation of the setup and options.
+- Tests for the calculations in the frontend module (`npm test`), ESLint and ruff, all run on GitHub for every push.
+
+### Fixed
+
+- Average price card: hours with a negative price were counted as a positive cost, so your average import price, export price and the result compared with the market were wrong on days with negative prices. The sign of the cost is now kept.
+- Colour of the current price: on days with prices around zero almost every price was shown as red or green, because the difference was measured relative to an average close to zero. It is now measured against the average or half of today's price range, whichever is larger.
+- Upcoming prices: for items with several unknown numbers, any number could be taken as the price. Now a field is only guessed when it is the only other number in the item.
+- The log line when no price sensor is found is now described correctly in the README.
+
+### Changed
+
+- The option *Show result in euros* is renamed to *Show result as an amount*; the amount was already shown in the currency of your Home Assistant.
+- The stray `download` file in the root of the repository is removed.
+
 ## [1.5.3] - 2026-09-24
 
 ### Changed
