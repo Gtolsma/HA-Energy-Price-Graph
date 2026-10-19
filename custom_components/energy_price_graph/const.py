@@ -20,6 +20,7 @@ CONF_SHOW_NOW_LINE = "show_now_line"
 CONF_SHOW_AVERAGE_LINE = "show_average_line"
 CONF_CHEAPEST_HOURS = "cheapest_hours"
 CONF_EXPENSIVE_HOURS = "expensive_hours"
+CONF_SHOW_HOURS_CARD = "show_hours_card"
 CONF_HIGHLIGHT_NEGATIVE = "highlight_negative"
 CONF_SHOW_CURRENT = "show_current"
 CONF_SHOW_PRICE_COLORS = "show_price_colors"
@@ -64,6 +65,7 @@ SECTIONS: dict[str, list[str]] = {
         CONF_SHOW_AVERAGE_LINE,
         CONF_CHEAPEST_HOURS,
         CONF_EXPENSIVE_HOURS,
+        CONF_SHOW_HOURS_CARD,
         CONF_HIGHLIGHT_NEGATIVE,
     ],
     SECTION_CURRENT: [
@@ -112,6 +114,7 @@ DEFAULT_OPTIONS: dict = {
     CONF_SHOW_AVERAGE_LINE: False,
     CONF_CHEAPEST_HOURS: 0,
     CONF_EXPENSIVE_HOURS: 0,
+    CONF_SHOW_HOURS_CARD: True,
     CONF_HIGHLIGHT_NEGATIVE: True,
     CONF_SHOW_CURRENT: True,
     CONF_SHOW_PRICE_COLORS: True,

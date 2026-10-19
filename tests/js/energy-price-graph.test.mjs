@@ -5,11 +5,13 @@ import { describe, it } from "node:test";
 
 import {
   cheapestHourSet,
+  collectionProp,
   expensiveHourSet,
   finePeriod,
   forecastPoints,
   forecastScale,
   gridStatIds,
+  hourRuns,
   levelFor,
   marketPeriod,
   paidAverage,
@@ -265,6 +267,25 @@ describe("expensiveHourSet", () => {
 
   it("skips days that are not (almost) complete", () => {
     assert.equal(expensiveHourSet(day([0.1, 0.2, 0.3]), 1).size, 0);
+  });
+});
+
+describe("hourRuns", () => {
+  it("joins consecutive hours", () => {
+    const hours = [T0 + 14 * HOUR, T0 + 2 * HOUR, T0 + 13 * HOUR, T0 + 3 * HOUR, T0 + 20 * HOUR];
+    assert.deepEqual(hourRuns(hours), [
+      [T0 + 2 * HOUR, T0 + 4 * HOUR],
+      [T0 + 13 * HOUR, T0 + 15 * HOUR],
+      [T0 + 20 * HOUR, T0 + 21 * HOUR],
+    ]);
+    assert.deepEqual(hourRuns([]), []);
+  });
+});
+
+describe("collectionProp", () => {
+  it("uses the Energy date picker collection without a key", () => {
+    assert.equal(collectionProp(undefined), "_energy");
+    assert.equal(collectionProp("energy_dashboard"), "_energy_dashboard");
   });
 });
 

@@ -53,6 +53,7 @@ from .const import (
     CONF_SHOW_CURRENT,
     CONF_SHOW_EXPORT,
     CONF_SHOW_GAS,
+    CONF_SHOW_HOURS_CARD,
     CONF_SHOW_NOW_LINE,
     CONF_SHOW_PRICE_COLORS,
     CONF_SHOW_SAVINGS,
@@ -121,6 +122,7 @@ OPTIONS_SCHEMA = vol.Schema(
                     vol.Required(CONF_SHOW_AVERAGE_LINE): BooleanSelector(),
                     vol.Required(CONF_CHEAPEST_HOURS): HOURS,
                     vol.Required(CONF_EXPENSIVE_HOURS): HOURS,
+                    vol.Required(CONF_SHOW_HOURS_CARD): BooleanSelector(),
                     vol.Required(CONF_HIGHLIGHT_NEGATIVE): BooleanSelector(),
                 }
             ),

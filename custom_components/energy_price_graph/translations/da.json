@@ -42,6 +42,7 @@
               "show_average_line": "Vis gennemsnitsprisen som en linje",
               "cheapest_hours": "Fremhæv de billigste timer pr. dag",
               "expensive_hours": "Fremhæv de dyreste timer pr. dag",
+              "show_hours_card": "Vis kortet med billige og dyre timer",
               "highlight_negative": "Fremhæv negative priser"
             },
             "data_description": {
@@ -49,6 +50,7 @@
               "show_average_line": "Vandret prikket linje ved den gennemsnitlige importpris for den viste periode (inklusive kommende priser).",
               "cheapest_hours": "Farver døgnets N billigste timer (0 = fra), for eksempel til at planlægge vaskemaskinen eller opladning. Kun for dage, hvor (næsten) alle priser er kendt, med prognose altså også i dag og i morgen.",
               "expensive_hours": "Farver døgnets N dyreste timer orange (0 = fra), for eksempel for at undgå stort forbrug eller til at aflade et hjemmebatteri. En time markeres aldrig både som billigst og dyrest.",
+              "show_hours_card": "Kort over Gennemsnitspris på fanen El med dagens billigste og dyreste timer som bjælker. Vises kun, når mindst én af de to skydere ovenfor er indstillet.",
               "highlight_negative": "Farver området under nul og tegner en nullinje, når prisen er negativ."
             }
           },
@@ -175,6 +177,14 @@
     }
   },
   "entity": {
+    "binary_sensor": {
+      "cheapest_hours": {
+        "name": "Billigste timer nu"
+      },
+      "expensive_hours": {
+        "name": "Dyreste timer nu"
+      }
+    },
     "sensor": {
       "import_paid_today": {
         "name": "Gennemsnitlig betalt importpris i dag"
@@ -205,6 +215,12 @@
       },
       "result_month": {
         "name": "Resultat i forhold til markedet denne måned"
+      },
+      "next_cheapest_hours": {
+        "name": "Næste billigste timer"
+      },
+      "next_expensive_hours": {
+        "name": "Næste dyreste timer"
       }
     }
   },

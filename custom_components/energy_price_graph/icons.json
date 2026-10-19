@@ -1,0 +1,20 @@
+{
+  "entity": {
+    "binary_sensor": {
+      "cheapest_hours": {
+        "default": "mdi:arrow-down-bold-circle-outline"
+      },
+      "expensive_hours": {
+        "default": "mdi:arrow-up-bold-circle-outline"
+      }
+    },
+    "sensor": {
+      "next_cheapest_hours": {
+        "default": "mdi:clock-start"
+      },
+      "next_expensive_hours": {
+        "default": "mdi:clock-start"
+      }
+    }
+  }
+}

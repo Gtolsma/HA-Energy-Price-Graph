@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Cheap and expensive hours card on the Electricity tab, above *Average price*: today's cheapest and most expensive hours as bars, with a line at the current time and tomorrow's hours once they are known (option *Show the cheap and expensive hours card*, on by default; only shown when one of the two hour options is set).
+- Sensors for automations: *Cheapest hours now* and *Most expensive hours now* (binary sensors with today's and tomorrow's hours as attributes) and *Next cheapest hours* / *Next most expensive hours* (when the next run starts).
+- All cards can be added to your own dashboards, also from the *Add card* dialog: `custom:energy-price-graph-card` (electricity or gas price graph), `custom:energy-price-average-card` and `custom:energy-price-hours-card`. The price graph and average price card follow the Energy date picker card of that dashboard.
 - Markers in the price graph: the most expensive hours of each day as an orange band (option *Highlight the most expensive hours per day*, off by default). An hour is never marked as both cheapest and most expensive.
 - Swedish, Danish and Norwegian translation of the setup, options, sensors, repair messages and the cards on the Energy dashboard.
 - Issue templates for bug reports and feature requests.
@@ -18,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- README: new screenshots (price graph with upcoming prices and markers, gas price graph, average price card with result and timing, options), options grouped per section and a clearer layout, and buttons to open the repository in HACS and to start the setup. The sections about the old `www` script and about making releases are removed.
+- README: new screenshots (price graph with upcoming prices and markers, gas price graph, average price card with result and timing, hours card, options), options grouped per section and a clearer layout, and buttons to open the repository in HACS and to start the setup. The sections about the old `www` script and about making releases are removed.
 
 ## [1.6.0] - 2026-09-28
 

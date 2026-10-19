@@ -42,6 +42,7 @@ const OPT = {
   averageLine: params.get("average_line") === "1",
   cheapestHours: Number(params.get("cheapest")) || 0,
   expensiveHours: Number(params.get("expensive")) || 0,
+  showHoursCard: params.get("hours_card") !== "0",
   highlightNegative: params.get("negative") !== "0",
   current: params.get("current") !== "0",
   priceColors: params.get("colors") !== "0",
@@ -89,6 +90,15 @@ const DAY = 86400000;
 
 function lang(hass) {
   return hass?.locale?.language || hass?.language || "en";
+}
+
+/**
+ * Property of the energy data collection on the connection. Without a key
+ * Home Assistant uses "_energy", the collection of the Energy date picker
+ * card on an ordinary dashboard.
+ */
+function collectionProp(key) {
+  return key ? `_${key}` : "_energy";
 }
 
 function esc(text) {
@@ -139,6 +149,7 @@ async function loadOptions(hass) {
   OPT.averageLine = !!o.show_average_line;
   OPT.cheapestHours = Math.max(0, Math.round(num(o.cheapest_hours)));
   OPT.expensiveHours = Math.max(0, Math.round(num(o.expensive_hours)));
+  OPT.showHoursCard = o.show_hours_card !== false;
   OPT.highlightNegative = o.highlight_negative !== false;
   OPT.current = o.show_current !== false;
   OPT.priceColors = o.show_price_colors !== false;
@@ -290,6 +301,9 @@ const LABELS = {
     surchargeHelp: "including the surcharge from the integration options",
     timing: "Timing", cheapHours: "in cheap hours", expensiveHours: "in expensive hours",
     timingHelp: "Share of your import in the cheapest and the most expensive quarter of the hours of each day. With evenly spread use both are about 25 %.",
+    hoursTitle: "Cheap and expensive hours", cheapest: "Cheapest hours", expensive: "Most expensive hours",
+    tomorrow: "Tomorrow", noHours: "No prices for today yet",
+    needPicker: "Add the Energy date picker card to this dashboard to choose the period.",
   },
   nl: {
     title: "Stroomprijs", imp: "Inkoop", exp: "Teruglevering", now: "Huidige prijs",
@@ -302,6 +316,9 @@ const LABELS = {
     surchargeHelp: "inclusief de opslag uit de integratie-opties",
     timing: "Timing", cheapHours: "in goedkope uren", expensiveHours: "in dure uren",
     timingHelp: "Aandeel van je inkoop in het goedkoopste en het duurste kwart van de uren van elke dag. Bij gelijkmatig verbruik zijn beide ongeveer 25 %.",
+    hoursTitle: "Goedkope en dure uren", cheapest: "Goedkoopste uren", expensive: "Duurste uren",
+    tomorrow: "Morgen", noHours: "Nog geen prijzen voor vandaag",
+    needPicker: "Voeg de kaart Energie-datumkiezer toe aan dit dashboard om de periode te kiezen.",
   },
   de: {
     title: "Strompreis", imp: "Bezug", exp: "Einspeisung", now: "Aktueller Preis",
@@ -314,6 +331,9 @@ const LABELS = {
     surchargeHelp: "einschließlich des Aufschlags aus den Integrationsoptionen",
     timing: "Timing", cheapHours: "in günstigen Stunden", expensiveHours: "in teuren Stunden",
     timingHelp: "Anteil deines Bezugs im günstigsten und im teuersten Viertel der Stunden jedes Tages. Bei gleichmäßigem Verbrauch sind beide etwa 25 %.",
+    hoursTitle: "Günstige und teure Stunden", cheapest: "Günstigste Stunden", expensive: "Teuerste Stunden",
+    tomorrow: "Morgen", noHours: "Noch keine Preise für heute",
+    needPicker: "Füge diesem Dashboard die Karte Energie-Datumsauswahl hinzu, um den Zeitraum zu wählen.",
   },
   sv: {
     title: "Elpris", imp: "Import", exp: "Export", now: "Aktuellt pris",
@@ -326,6 +346,9 @@ const LABELS = {
     surchargeHelp: "inklusive påslaget från integrationens alternativ",
     timing: "Timing", cheapHours: "under billiga timmar", expensiveHours: "under dyra timmar",
     timingHelp: "Andel av din import under den billigaste och den dyraste fjärdedelen av dygnets timmar. Vid jämnt fördelad förbrukning är båda ungefär 25 %.",
+    hoursTitle: "Billiga och dyra timmar", cheapest: "Billigaste timmarna", expensive: "Dyraste timmarna",
+    tomorrow: "Imorgon", noHours: "Inga priser för idag än",
+    needPicker: "Lägg till kortet Energidatumväljare på den här instrumentpanelen för att välja period.",
   },
   da: {
     title: "Elpris", imp: "Import", exp: "Eksport", now: "Aktuel pris",
@@ -338,6 +361,9 @@ const LABELS = {
     surchargeHelp: "inklusive tillægget fra integrationens indstillinger",
     timing: "Timing", cheapHours: "i billige timer", expensiveHours: "i dyre timer",
     timingHelp: "Andel af din import i den billigste og den dyreste fjerdedel af døgnets timer. Ved jævnt fordelt forbrug er begge cirka 25 %.",
+    hoursTitle: "Billige og dyre timer", cheapest: "Billigste timer", expensive: "Dyreste timer",
+    tomorrow: "I morgen", noHours: "Ingen priser for i dag endnu",
+    needPicker: "Tilføj kortet Energi-datovælger til dette dashboard for at vælge perioden.",
   },
   nb: {
     title: "Strømpris", imp: "Import", exp: "Eksport", now: "Nåværende pris",
@@ -350,6 +376,9 @@ const LABELS = {
     surchargeHelp: "inkludert påslaget fra integrasjonens alternativer",
     timing: "Timing", cheapHours: "i billige timer", expensiveHours: "i dyre timer",
     timingHelp: "Andel av importen din i den billigste og den dyreste fjerdedelen av døgnets timer. Ved jevnt fordelt forbruk er begge omtrent 25 %.",
+    hoursTitle: "Billige og dyre timer", cheapest: "Billigste timer", expensive: "Dyreste timer",
+    tomorrow: "I morgen", noHours: "Ingen priser for i dag ennå",
+    needPicker: "Legg til kortet Energi-datovelger i dette dashbordet for å velge perioden.",
   },
 };
 
@@ -381,6 +410,39 @@ function averageCard({ imp, exp }, collectionKey, L) {
     surcharge: { import: OPT.importSurcharge, export: OPT.exportSurcharge },
     colors: { import: c.import, export: c.export },
   };
+}
+
+const HOURS_CARD = "energy-price-hours-card";
+const GRAPH_CARD = "energy-price-graph-card";
+
+function hoursCard(L) {
+  const c = colors();
+  return {
+    type: `custom:${HOURS_CARD}`,
+    title: L.hoursTitle,
+    labels: L,
+    colors: { cheapest: c.good, expensive: c.warn },
+    hide_when_off: true,
+  };
+}
+
+/**
+ * Configuration for a card that was added by hand to a dashboard: built like
+ * on the Energy dashboard, with the user's own settings on top. Without a
+ * collection_key the card follows the Energy date picker card of that
+ * dashboard (the "_energy" collection).
+ */
+async function standaloneConfig(hass, build, own) {
+  await loadOptions(hass);
+  const found = await findPriceEntities(hass);
+  const L = labels(hass);
+  const key = own?.collection_key || undefined;
+  const base = build(found, key, L);
+  const rest = { ...(own || {}) };
+  delete rest.type;
+  const cfg = { ...base, ...rest };
+  if (!key) delete cfg.collection_key;
+  return cfg;
 }
 
 /**
@@ -591,6 +653,10 @@ async function extendView(target, view, config, hass) {
   // depend on the graph being shown.
   if (target.key === "electricity" && OPT.average) {
     injectAverage(view, averageCard(found, key, L));
+  }
+  // Injected after the average card at the same place, so it ends up above it.
+  if (target.key === "electricity" && OPT.showHoursCard && (OPT.cheapestHours > 0 || OPT.expensiveHours > 0)) {
+    injectAverage(view, hoursCard(L));
   }
   // Summary tab: the gas graph goes first, so the electricity graph that is
   // injected next ends up above it.
@@ -1325,7 +1391,7 @@ function finePeriod(start, end, now = Date.now()) {
 function handleFinePeriod(card) {
   const cfg = cardConfig(card);
   if (!cfg?.[FINE_KEY] || FINE_STATE.has(card) || !card.hass) return;
-  const collection = card.hass.connection?.[`_${cfg.collection_key || "energy_dashboard"}`];
+  const collection = card.hass.connection?.[collectionProp(cfg.collection_key)];
   if (!collection?.subscribe) return; // tried again on the next update
   const state = {};
   FINE_STATE.set(card, state);
@@ -1635,17 +1701,46 @@ class EnergyPriceAverageCard extends (globalThis.HTMLElement ?? class {}) {
     return { columns: 12, min_columns: 6, rows: "auto" };
   }
 
+  static getStubConfig() {
+    return {};
+  }
+
   _subscribe() {
     if (this._unsub || !this._hass || !this._config) return;
-    const key = `_${this._config.collection_key || "energy_dashboard"}`;
-    const collection = this._hass.connection?.[key];
+    if (!this._config.labels) {
+      // Added by hand to a dashboard: fill in the rest like on the Energy
+      // dashboard (price sensors, labels, colours and options).
+      this._autoConfig();
+      return;
+    }
+    const collection = this._hass.connection?.[collectionProp(this._config.collection_key)];
     if (!collection?.subscribe) {
-      // The Energy dashboard creates the collection; wait until it exists.
+      // The Energy dashboard (or an Energy date picker card) creates the
+      // collection; wait until it exists and give a hint after a while.
       clearTimeout(this._retry);
+      this._waited = (this._waited || 0) + 1;
+      if (this._waited === 10) this._render();
       this._retry = setTimeout(() => this._subscribe(), 500);
       return;
     }
+    this._waited = 0;
     this._unsub = collection.subscribe((data) => this._update(data));
+  }
+
+  async _autoConfig() {
+    if (this._autoPending) return;
+    this._autoPending = true;
+    try {
+      const own = this._config;
+      const base = await standaloneConfig(this._hass, (found, key, L) => averageCard(found, key, L), own);
+      this._config = base;
+      this._render();
+      this._subscribe();
+    } catch (e) {
+      console.warn(TAG, "could not set up the average price card", e);
+    } finally {
+      this._autoPending = false;
+    }
   }
 
   async _update(data) {
@@ -1793,7 +1888,7 @@ class EnergyPriceAverageCard extends (globalThis.HTMLElement ?? class {}) {
     const money = c.show_savings !== false;
     const marketHelp = r?.surcharged ? `${L.marketHelp}, ${L.surchargeHelp}` : L.marketHelp;
     const body = !r
-      ? `<div class="loading">…</div>`
+      ? `<div class="loading">${this._waited >= 10 && L.needPicker ? esc(L.needPicker) : "…"}</div>`
       : `
         <div class="row head">
           <div></div>
@@ -1836,6 +1931,276 @@ class EnergyPriceAverageCard extends (globalThis.HTMLElement ?? class {}) {
   }
 }
 
+/* ------------------------------------------------------------------------ *
+ * Cheap and expensive hours card
+ *
+ * Today's cheapest and most expensive hours as bars, from the integration
+ * (the same hours as the binary sensors). Shown on the Energy dashboard above
+ * the average price card, and available for other dashboards.
+ * ------------------------------------------------------------------------ */
+
+/** Runs of consecutive hours, from a list of hour starts (ms). */
+function hourRuns(hours) {
+  const out = [];
+  for (const t of [...hours].sort((a, b) => a - b)) {
+    const last = out[out.length - 1];
+    if (last && last[1] === t) last[1] = t + HOUR;
+    else out.push([t, t + HOUR]);
+  }
+  return out;
+}
+
+class EnergyPriceHoursCard extends (globalThis.HTMLElement ?? class {}) {
+  setConfig(config) {
+    this._config = config || {};
+    if (!this.shadowRoot) this.attachShadow({ mode: "open" });
+    this._render();
+  }
+
+  set hass(hass) {
+    const first = !this._hass;
+    this._hass = hass;
+    if (first) this._load();
+  }
+
+  get hass() {
+    return this._hass;
+  }
+
+  connectedCallback() {
+    clearInterval(this._timer);
+    // New prices arrive in the afternoon; the "now" line moves every minute.
+    this._timer = setInterval(() => this._load(), 5 * 60000);
+    this._tick = setInterval(() => this._render(), 60000);
+    this._load();
+  }
+
+  disconnectedCallback() {
+    clearInterval(this._timer);
+    clearInterval(this._tick);
+  }
+
+  getCardSize() {
+    return 3;
+  }
+
+  getGridOptions() {
+    return { columns: 12, min_columns: 6, rows: "auto" };
+  }
+
+  static getStubConfig() {
+    return {};
+  }
+
+  async _load() {
+    if (!this._hass) return;
+    try {
+      this._data = await this._hass.callWS({ type: "energy_price_graph/hours" });
+    } catch (e) {
+      this._data = null;
+    }
+    this._render();
+  }
+
+  _labels() {
+    const own = this._config?.labels;
+    return own || (this._hass ? labels(this._hass) : LABELS.en);
+  }
+
+  /** Time of day in the user's format (Settings → Profile → Time format). */
+  _time(t) {
+    const format = this._hass?.locale?.time_format;
+    const hour12 = format === "12" ? true : format === "24" ? false : undefined;
+    return new Intl.DateTimeFormat(lang(this._hass), { hour: "numeric", minute: "2-digit", hour12 }).format(
+      new Date(t)
+    );
+  }
+
+  /** Like _time, but midnight at the end of a day is 24:00 in a 24-hour format. */
+  _end(t) {
+    const text = this._time(t);
+    return /^0?0[:.]00$/.test(text) ? "24:00" : text;
+  }
+
+  _span([start, end]) {
+    return `${this._time(start)} – ${this._end(end)}`;
+  }
+
+  _render() {
+    if (!this.shadowRoot || !this._config) return;
+    const L = this._labels();
+    const c = colors();
+    const col = { cheapest: this._config.colors?.cheapest || c.good, expensive: this._config.colors?.expensive || c.warn };
+    const d = this._data;
+    const kinds = ["cheapest", "expensive"].filter((k) => d && d[`${k}_count`] > 0);
+    // On the Energy dashboard the card disappears when both sliders are 0.
+    this.style.display = !kinds.length && this._config.hide_when_off && this._data !== undefined ? "none" : "";
+    const start = localMidnight();
+    const end = start + DAY;
+    const now = Date.now();
+    const pos = (t) => `${(Math.min(Math.max(t, start), end) - start) / DAY * 100}%`;
+    const hoursOf = (k) => (d?.[k] || []).map((h) => Date.parse(h)).filter(Number.isFinite);
+    let body;
+    if (!d || !kinds.length) {
+      body = `<div class="muted">${esc(L.noHours)}</div>`;
+    } else {
+      const rows = kinds.map((k) => {
+        const today = hourRuns(hoursOf(k).filter((t) => t >= start && t < end));
+        const blocks = today
+          .map((r) => `<i style="left:${pos(r[0])};width:calc(${pos(r[1])} - ${pos(r[0])});background:${esc(col[k])}"></i>`)
+          .join("");
+        const spans = today.map((r) => this._span(r)).join(", ");
+        return `
+          <div class="label"><span>${esc(L[k])}</span><span class="muted">${esc(spans)}</span></div>
+          <div class="bar">${blocks}<b style="left:${pos(now)}"></b></div>`;
+      });
+      const tomorrow = kinds
+        .map((k) => {
+          const runs = hourRuns(hoursOf(k).filter((t) => t >= end));
+          if (!runs.length) return "";
+          const spans = runs.map((r) => this._span(r)).join(", ");
+          return `<span><span class="dot" style="background:${esc(col[k])}"></span>${esc(spans)}</span>`;
+        })
+        .filter(Boolean);
+      const anyToday = kinds.some((k) => hoursOf(k).some((t) => t >= start && t < end));
+      const axis = [0, 6, 12, 18, 24]
+        .map((h) => `<span>${esc(h === 24 ? this._end(end) : this._time(start + h * HOUR))}</span>`)
+        .join("");
+      body = anyToday
+        ? `${rows.join("")}<div class="axis">${axis}</div>`
+        : `<div class="muted">${esc(L.noHours)}</div>`;
+      if (tomorrow.length) {
+        body += `<div class="tomorrow"><div class="muted">${esc(L.tomorrow)}</div><div class="items">${tomorrow.join("")}</div></div>`;
+      }
+    }
+    const title = this._config.title ?? L.hoursTitle;
+    this.shadowRoot.innerHTML = `
+      <style>
+        ha-card { height: 100%; }
+        .card-header { padding: 16px 16px 0; font-size: var(--ha-card-header-font-size, 24px);
+          font-weight: var(--ha-font-weight-normal, 400); line-height: 32px;
+          color: var(--ha-card-header-color, var(--primary-text-color)); }
+        .content { padding: 12px 16px 16px; }
+        .label { display: flex; justify-content: space-between; gap: 8px; margin: 4px 0 6px; }
+        .label + .bar, .bar { margin-bottom: 10px; }
+        .bar { position: relative; height: 24px; border-radius: 6px; overflow: hidden;
+          background: var(--secondary-background-color, rgba(127,127,127,0.15)); }
+        .bar i { position: absolute; top: 0; bottom: 0; }
+        .bar b { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px;
+          background: var(--primary-text-color); }
+        .axis { display: flex; justify-content: space-between; color: var(--secondary-text-color);
+          font-size: var(--ha-font-size-s, 12px); }
+        .muted { color: var(--secondary-text-color); }
+        .tomorrow { display: flex; gap: 16px; align-items: baseline; margin-top: 10px;
+          padding-top: 10px; border-top: 1px solid var(--divider-color); }
+        .items { flex: 1; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+        .items > span { display: inline-flex; align-items: center; gap: 6px; }
+        .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+      </style>
+      <ha-card>
+        ${title ? `<div class="card-header">${esc(title)}</div>` : ""}
+        <div class="content">${body}</div>
+      </ha-card>`;
+  }
+}
+
+/* ------------------------------------------------------------------------ *
+ * Price graph card for other dashboards
+ *
+ * Builds the same statistics-graph card as on the Energy dashboard (with the
+ * current price, upcoming prices and markers) and follows the Energy date
+ * picker card of the dashboard it is on.
+ * ------------------------------------------------------------------------ */
+
+class EnergyPriceGraphCard extends (globalThis.HTMLElement ?? class {}) {
+  setConfig(config) {
+    this._config = config || {};
+    this._card = null;
+    this._build();
+  }
+
+  set hass(hass) {
+    this._hass = hass;
+    if (this._card) this._card.hass = hass;
+    else this._build();
+  }
+
+  get hass() {
+    return this._hass;
+  }
+
+  getCardSize() {
+    return 5;
+  }
+
+  getGridOptions() {
+    return { columns: "full", min_columns: 6, rows: "auto" };
+  }
+
+  static getStubConfig() {
+    return { kind: "electricity" };
+  }
+
+  disconnectedCallback() {
+    clearTimeout(this._hint);
+  }
+
+  async _build() {
+    if (!this._hass || !this._config || this._building) return;
+    this._building = true;
+    const config = this._config;
+    try {
+      const gas = config.kind === "gas";
+      const cfg = await standaloneConfig(
+        this._hass,
+        (found, key, L) => {
+          if (gas) return found.gas ? gasCard(found.gas, key, L) : null;
+          return found.imp || found.exp ? priceCard(found, key, L) : null;
+        },
+        null
+      ).catch(() => null);
+      if (config !== this._config) return; // changed meanwhile
+      const L = labels(this._hass);
+      if (!cfg || !cfg.type) {
+        this._message(
+          gas
+            ? "Energy Price Graph: no gas price sensor in the Energy settings."
+            : "Energy Price Graph: no electricity price sensor in the Energy settings."
+        );
+        return;
+      }
+      if (config.collection_key) cfg.collection_key = config.collection_key;
+      if (config.title !== undefined) cfg.title = config.title;
+      const helpers = await window.loadCardHelpers();
+      const card = helpers.createCardElement(cfg);
+      card.hass = this._hass;
+      this.replaceChildren(card);
+      this._card = card;
+      // Hint when the dashboard has no Energy date picker card.
+      clearTimeout(this._hint);
+      this._hint = setTimeout(() => {
+        if (!this._hass?.connection?.[collectionProp(cfg.collection_key)]) {
+          const p = document.createElement("div");
+          p.style.cssText = "padding:8px 16px;color:var(--secondary-text-color);font-size:12px";
+          p.textContent = L.needPicker;
+          this.append(p);
+        }
+      }, 5000);
+    } catch (e) {
+      console.warn(TAG, "could not build the price graph card", e);
+    } finally {
+      this._building = false;
+    }
+  }
+
+  _message(text) {
+    const card = document.createElement("ha-card");
+    card.style.cssText = "display:block;padding:16px;color:var(--secondary-text-color)";
+    card.textContent = text;
+    this.replaceChildren(card);
+  }
+}
+
 /**
  * Define the card on a registry. The frontend may swap window.customElements
  * for a scoped-registry polyfill after this module ran, so this is called for
@@ -1843,16 +2208,52 @@ class EnergyPriceAverageCard extends (globalThis.HTMLElement ?? class {}) {
  * can only be registered once.
  */
 function defineAverageCard(reg, get) {
-  try {
-    if (get.call(reg, AVG_CARD)) return;
-    reg.define(AVG_CARD, class extends EnergyPriceAverageCard {});
-  } catch (e) {
-    console.warn(TAG, "could not define the average price card", e);
+  const cards = [
+    [AVG_CARD, EnergyPriceAverageCard],
+    [HOURS_CARD, EnergyPriceHoursCard],
+    [GRAPH_CARD, EnergyPriceGraphCard],
+  ];
+  for (const [tag, base] of cards) {
+    try {
+      if (!get.call(reg, tag)) reg.define(tag, class extends base {});
+    } catch (e) {
+      console.warn(TAG, `could not define ${tag}`, e);
+    }
   }
+}
+
+/** Offer the cards in the "Add card" dialog of a dashboard. */
+function registerCardPicker() {
+  const w = globalThis.window;
+  if (!w || w.__energyPriceGraphCards) return;
+  w.__energyPriceGraphCards = true;
+  w.customCards = w.customCards || [];
+  const docs = "https://github.com/Gtolsma/HA-Energy-Price-Graph#-cards-on-your-own-dashboards";
+  w.customCards.push(
+    {
+      type: GRAPH_CARD,
+      name: "Energy Price Graph",
+      description: "Electricity or gas price with upcoming prices and markers, like on the Energy dashboard.",
+      documentationURL: docs,
+    },
+    {
+      type: AVG_CARD,
+      name: "Energy Price Graph: average price",
+      description: "What you paid and received per kWh compared with the market.",
+      documentationURL: docs,
+    },
+    {
+      type: HOURS_CARD,
+      name: "Energy Price Graph: cheap and expensive hours",
+      description: "Today's cheapest and most expensive hours as bars.",
+      documentationURL: docs,
+    }
+  );
 }
 
 /* Start: hook the registry now and whenever the frontend replaces it. */
 if (globalThis.window?.customElements) {
+  registerCardPicker();
   installRegistryHooks();
   // Keep checking for a replaced registry for a while after start-up.
   const hookTimer = setInterval(installRegistryHooks, 100);
@@ -1863,11 +2264,13 @@ if (globalThis.window?.customElements) {
 // only for its side effects.
 export {
   cheapestHourSet,
+  collectionProp,
   expensiveHourSet,
   finePeriod,
   forecastPoints,
   forecastScale,
   gridStatIds,
+  hourRuns,
   levelFor,
   marketPeriod,
   paidAverage,

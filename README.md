@@ -17,9 +17,11 @@ Show your **dynamic electricity and gas prices** directly in the **built-in Ener
 - 🔮 **Upcoming prices as a dashed line**: from the price sensor itself, a forecast sensor you choose, or the action of Nord Pool, Tibber, EnergyZero and easyEnergy
 - 🚦 **Current price chips** in the card header, coloured green / orange / red compared to today's average
 - 📍 **Markers in the graph**: the current time, the average price, the cheapest and the most expensive hours of the day and negative prices
+- ⏰ **Cheap and expensive hours**: a card with today's cheapest and most expensive hours, plus sensors to use in automations
 - 💶 **Average price card**: what you actually paid / received per kWh next to the market average, the result as an amount and your timing
 - 🔥 **Gas price graph** on the Gas tab and, optionally, the Summary tab
 - 🧮 **Sensors** with your average prices and the result compared with the market, for today and this month
+- 🧩 **All cards also on your own dashboards**, from the *Add card* dialog
 - 📅 Follows the Energy dashboard **date picker** (today, yesterday, last week, …)
 - 🔌 Uses the price sensors you already configured in the **Energy settings** — no extra setup needed
 - ⚙️ Configurable from the UI: resolution, line style, tabs, markers, min/max, title, sensor overrides
@@ -48,6 +50,12 @@ The screenshot above shows a sunny Sunday afternoon at 15:40:
 On the Gas tab the gas price gets its own graph below the gas consumption graph. With a dynamic gas contract the price changes once a day; tomorrow's price is shown dashed as soon as it is known.
 
 ![Gas price graph for one week, with tomorrow's price dashed, the current time and the average price of the week](https://raw.githubusercontent.com/Gtolsma/HA-Energy-Price-Graph/main/docs/images/gas-price.png)
+
+### ⏰ Cheap and expensive hours
+
+On the Electricity tab, above *Average price*, a card shows today's cheapest and most expensive hours as bars, with a line at the current time. As soon as tomorrow's prices are known, tomorrow's hours are listed below. The card appears when *Highlight the cheapest / most expensive hours per day* is set in the options; the same hours are available as [sensors](#-sensors) for automations.
+
+<img src="https://raw.githubusercontent.com/Gtolsma/HA-Energy-Price-Graph/main/docs/images/hours-card.png" alt="Card with today's cheapest hours (12:00 – 15:00) as a green bar and the most expensive hours (18:00 – 21:00) as an orange bar, a line at the current time and tomorrow's hours below" width="452">
 
 ### 💶 Average price
 
@@ -111,6 +119,7 @@ Go to **Settings → Devices & services → Energy Price Graph → Configure**. 
 | Show the average price as a line | Off | Horizontal dotted line at the average import price of the period shown, including upcoming prices. |
 | Highlight the cheapest hours per day | 0 (off) | Shades the N cheapest hours of each day green, for example to plan the washing machine or charging. Only days of which at least 20 hours of prices are known are marked, so with a forecast also today and tomorrow. Only at a resolution of an hour or finer. |
 | Highlight the most expensive hours per day | 0 (off) | Shades the N most expensive hours of each day orange, for example to avoid using much power or to discharge a home battery. Same rules as the cheapest hours; an hour is never marked as both. |
+| Show the cheap and expensive hours card | On | Card above *Average price* on the Electricity tab with today's cheapest and most expensive hours as bars. Only shown when at least one of the two options above is set. |
 | Highlight negative prices | On | Shades the area below zero and draws a zero line when the price is negative. |
 
 ### 🚦 Current price
@@ -162,7 +171,11 @@ Card title, sensors to use instead of the ones in your Energy settings (import, 
 
 ## 🧮 Sensors
 
-The integration adds a service device *Energy Price Graph* with these sensors, updated every 15 minutes from the same statistics as the average price card:
+The integration adds a service device *Energy Price Graph* with these sensors.
+
+### Average prices
+
+Updated every 15 minutes from the same statistics as the average price card:
 
 | Sensor | Description |
 |---|---|
@@ -172,13 +185,65 @@ The integration adds a service device *Energy Price Graph* with these sensors, u
 | Average market export price today / this month | Average of the export price sensor, plus the surcharge |
 | Result vs market today / this month | How much better (+) or worse (−) you did than the market average, in your currency |
 
-The export sensors are unavailable without export in your Energy settings. Use them in automations, notifications or your own dashboards; their history is kept in the long-term statistics.
+The export sensors are unavailable without export in your Energy settings. Their history is kept in the long-term statistics.
+
+### Cheap and expensive hours
+
+The same hours as the green and orange bands in the graph. They need the upcoming prices of the day (see [Forecast](#-forecast-upcoming-prices)) and are unavailable while *Highlight the cheapest / most expensive hours per day* is 0.
+
+| Sensor | Description |
+|---|---|
+| Cheapest hours now | **On** during the cheapest hours of the day. Attributes: `today`, `tomorrow` (start of each hour) and `periods` (start and end of each run of hours) |
+| Most expensive hours now | **On** during the most expensive hours of the day, with the same attributes |
+| Next cheapest hours | When the next run of cheapest hours starts; *unknown* until tomorrow's prices are known |
+| Next most expensive hours | When the next run of most expensive hours starts |
+
+For example, to switch on the boiler during the cheapest hours:
+
+```yaml
+automation:
+  - alias: Boiler during the cheapest hours
+    triggers:
+      - trigger: state
+        entity_id: binary_sensor.energy_price_graph_cheapest_hours_now
+        to: ["on", "off"]
+    actions:
+      - action: "switch.turn_{{ trigger.to_state.state }}"
+        target:
+          entity_id: switch.boiler
+```
+
+## 🧩 Cards on your own dashboards
+
+Everything on the Energy dashboard is also available as a card for your own dashboards. Pick them in **Add card** (search for *Energy Price Graph*) or add them in YAML. They use the same options and price sensors as on the Energy dashboard.
+
+| Card | YAML | Options |
+|---|---|---|
+| 📈 Price graph | `type: custom:energy-price-graph-card` | `kind: electricity` (default) or `gas`, `title` |
+| 💶 Average price | `type: custom:energy-price-average-card` | `title` |
+| ⏰ Cheap and expensive hours | `type: custom:energy-price-hours-card` | `title` |
+
+The price graph and the average price card show the period of the **Energy date picker** card, like the built-in energy cards. Add that card to the same dashboard:
+
+```yaml
+type: sections
+sections:
+  - cards:
+      - type: energy-date-selection
+      - type: custom:energy-price-graph-card
+      - type: custom:energy-price-graph-card
+        kind: gas
+      - type: custom:energy-price-hours-card
+      - type: custom:energy-price-average-card
+```
+
+The hours card always shows today (and tomorrow, once known) and needs no date picker.
 
 ## 🔍 How it works
 
 The Energy dashboard is generated in the frontend by "view strategies". This integration serves a small JavaScript module and registers it with the frontend. The module reads the integration's options over the websocket API each time the Energy dashboard is built. The module extends the output of the Electricity, Gas and Summary strategies with a standard `statistics-graph` card configured with `energy_date_selection: true`, so it stays in sync with the dashboard's date picker.
 
-The graph does not appear in the Energy dashboard's **Customize cards** dialog; use the integration options instead.
+The cards do not appear in the Energy dashboard's **Customize cards** dialog; use the integration options instead, or add them to your own dashboard (see above).
 
 ## ⚠️ Limitations
 
