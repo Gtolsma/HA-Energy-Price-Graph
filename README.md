@@ -69,16 +69,21 @@ With solar panels the export result is usually negative, as in this example: you
 
 ### HACS (custom repository)
 
-1. HACS → ⋮ → **Custom repositories**
-2. Add `https://github.com/Gtolsma/HA-Energy-Price-Graph` with type **Integration**
-3. Search for **Energy Price Graph**, download it and restart Home Assistant
-4. **Settings → Devices & services → Add integration → Energy Price Graph**
-5. Refresh your browser once
+1. Add this repository to HACS with the button below, or by hand: HACS → ⋮ → **Custom repositories** → add `https://github.com/Gtolsma/HA-Energy-Price-Graph` with type **Integration**
+
+   [![Open your Home Assistant instance and open this repository in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Gtolsma&repository=HA-Energy-Price-Graph&category=integration)
+
+2. Download **Energy Price Graph** in HACS and restart Home Assistant
+3. Add the integration with the button below, or via **Settings → Devices & services → Add integration → Energy Price Graph**
+
+   [![Open your Home Assistant instance and start setting up Energy Price Graph](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=energy_price_graph)
+
+4. Refresh your browser once
 
 ### Manual
 
 1. Copy `custom_components/energy_price_graph` to `/config/custom_components/energy_price_graph`
-2. Restart Home Assistant and add the integration as in step 4 above
+2. Restart Home Assistant and add the integration as in step 3 above
 3. Refresh your browser once
 
 ## ⚙️ Options
