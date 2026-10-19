@@ -241,7 +241,7 @@ The hours card always shows today (and tomorrow, once known) and needs no date p
 
 ## 🔍 How it works
 
-The Energy dashboard is generated in the frontend by "view strategies". This integration serves a small JavaScript module and registers it with the frontend. The module reads the integration's options over the websocket API each time the Energy dashboard is built. The module extends the output of the Electricity, Gas and Summary strategies with a standard `statistics-graph` card configured with `energy_date_selection: true`, so it stays in sync with the dashboard's date picker, and adds its own average price and hours cards to the Electricity tab. The cheapest and most expensive hours are calculated by the integration, so the sensors, the hours card and the bands in the graph always agree.
+The Energy dashboard is generated in the frontend by "view strategies". This integration serves a small JavaScript module and registers it with the frontend. The module reads the integration's options over the websocket API each time the Energy dashboard is built. The module extends the output of the Electricity, Gas and Summary strategies with a standard `statistics-graph` card configured with `energy_date_selection: true`, so it stays in sync with the dashboard's date picker, and adds its own average price and hours cards to the Electricity tab. The sensors and the hours card share the cheapest and most expensive hours calculated by the integration, with the same rules as the bands in the graph.
 
 The cards do not appear in the Energy dashboard's **Customize cards** dialog; use the integration options instead, or add them to your own dashboard (see above).
 
