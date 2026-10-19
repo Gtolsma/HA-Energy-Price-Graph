@@ -176,7 +176,7 @@ The graph does not appear in the Energy dashboard's **Customize cards** dialog; 
 ## ⚠️ Limitations
 
 - This relies on **internal frontend code** of Home Assistant, not a public API. A future Home Assistant update may break it. If that happens, the Energy dashboard keeps working normally, just without the price graph, and a repair message appears in **Settings → Repairs**. Please open an issue.
-- No water prices.
+- No water prices yet!
 
 ## 🩺 Troubleshooting
 
