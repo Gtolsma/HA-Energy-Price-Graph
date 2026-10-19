@@ -10,11 +10,15 @@ the order of the prices matters, so they are not scaled.
 from __future__ import annotations
 
 from collections.abc import Iterable
+import contextlib
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 import logging
+import math
 from typing import TYPE_CHECKING, Any
 
+from homeassistant.components.recorder import get_instance
+from homeassistant.components.recorder.statistics import statistics_during_period
 from homeassistant.core import (
     CALLBACK_TYPE,
     Event,
@@ -161,6 +165,22 @@ def hourly(points: Iterable[tuple[datetime, float]]) -> dict[datetime, float]:
     return {h: sum(v) / len(v) for h, v in sums.items()}
 
 
+def forecast_scale(points: Points, reference: float | None) -> float:
+    """The factor (1, ct, MWh, ...) that brings the points to the unit of the sensor.
+
+    Like the frontend module: the one that puts the median closest to the
+    current price. Needed to combine upcoming prices with recorded prices.
+    """
+    values = sorted(abs(value) for _, value in points if value)
+    if not values or not reference:
+        return 1.0
+    median = values[len(values) // 2]
+    return min(
+        (1.0, 0.01, 0.001, 1e-5, 1e-7),
+        key=lambda f: abs(math.log10(median * f / abs(reference))),
+    )
+
+
 def extreme_hours(
     prices: dict[datetime, float],
     count: int,
@@ -210,6 +230,9 @@ class HoursData:
     expensive: list[datetime] = field(default_factory=list)
     cheapest_count: int = 0
     expensive_count: int = 0
+    # Why there are no hours: "no_source" (no price sensor to take the prices
+    # from) or "no_prices" (the sensor gives no upcoming prices).
+    reason: str | None = None
 
     def hours(self, kind: str) -> list[datetime]:
         """The hours of one kind ("cheapest" or "expensive")."""
@@ -234,6 +257,7 @@ class HoursData:
             "expensive": [h.isoformat() for h in self.expensive],
             "cheapest_count": self.cheapest_count,
             "expensive_count": self.expensive_count,
+            "reason": self.reason,
         }
 
 
@@ -321,6 +345,35 @@ class HoursCoordinator(DataUpdateCoordinator[HoursData]):
                 out.append((parsed, float(value)))
         return out
 
+    async def _price_sensor(self) -> str | None:
+        """The import price sensor (the recorded prices are those of this sensor)."""
+        setup = await async_energy_setup(self.hass, self.options)
+        return setup.import_price if setup else None
+
+    async def _recorded(self, entity_id: str) -> Points:
+        """Hourly prices of today so far, from the recorder statistics."""
+        if "recorder" not in self.hass.config.components:
+            return []
+        try:
+            stats = await get_instance(self.hass).async_add_executor_job(
+                statistics_during_period,
+                self.hass,
+                dt_util.as_utc(dt_util.start_of_local_day()),
+                None,
+                {entity_id},
+                "hour",
+                None,
+                {"mean"},
+            )
+        except Exception as err:  # noqa: BLE001 - best effort
+            _LOGGER.debug("Could not read recorded prices of %s: %s", entity_id, err)
+            return []
+        return [
+            (dt_util.utc_from_timestamp(row["start"]), float(row["mean"]))
+            for row in stats.get(entity_id, [])
+            if _is_number(row.get("mean")) and _is_number(row.get("start"))
+        ]
+
     async def _async_update_data(self) -> HoursData:
         data = HoursData(
             cheapest_count=self.cheapest_count, expensive_count=self.expensive_count
@@ -331,8 +384,25 @@ class HoursCoordinator(DataUpdateCoordinator[HoursData]):
             return data
         data.source = await self._source()
         self._track(data.source)
-        if data.source:
-            prices = hourly(await self._points(data.source))
+        if not data.source:
+            data.reason = "no_source"
+        else:
+            points = await self._points(data.source)
+            if not points:
+                data.reason = "no_prices"
+            price_entity = await self._price_sensor()
+            reference = None
+            if price_entity and (state := self.hass.states.get(price_entity)):
+                with contextlib.suppress(ValueError):
+                    reference = float(state.state)
+            factor = forecast_scale(points, reference)
+            prices = hourly([(ts, value * factor) for ts, value in points])
+            # Many integrations only list the upcoming prices: the hours that
+            # have passed are taken from the recorded prices, so today still
+            # has (almost) all of its hours.
+            if price_entity:
+                for hour, price in hourly(await self._recorded(price_entity)).items():
+                    prices.setdefault(hour, price)
             # Only today and later: yesterday is of no use for "now" and "next".
             today = dt_util.start_of_local_day()
             prices = {h: p for h, p in prices.items() if h >= today}
@@ -340,5 +410,7 @@ class HoursCoordinator(DataUpdateCoordinator[HoursData]):
                 prices, data.cheapest_count, data.expensive_count
             )
         found = bool(data.cheapest or data.expensive)
+        if found:
+            data.reason = None
         self.update_interval = UPDATE_INTERVAL if found else RETRY_INTERVAL
         return data

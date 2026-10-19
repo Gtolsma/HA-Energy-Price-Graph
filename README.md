@@ -191,7 +191,7 @@ The export sensors are unavailable without export in your Energy settings. Their
 
 ### Cheap and expensive hours
 
-The same hours as the green and orange bands in the graph. They need the upcoming prices of the day (see [Forecast](#-forecast-upcoming-prices)) and are unavailable while *Highlight the cheapest / most expensive hours per day* is 0.
+The same hours as the green and orange bands in the graph. They need the upcoming prices of the day (see [Forecast](#-forecast-upcoming-prices)); hours that have already passed are taken from the recorded prices when your price sensor only lists the upcoming ones. They are unavailable while *Highlight the cheapest / most expensive hours per day* is 0.
 
 | Sensor | Description |
 |---|---|

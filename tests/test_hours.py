@@ -11,10 +11,12 @@ from pytest_homeassistant_custom_component.common import async_fire_time_changed
 from custom_components.energy_price_graph.hours import (
     RETRY_INTERVAL,
     UPDATE_INTERVAL,
+    HoursCoordinator,
     HoursData,
     attribute_points,
     calculate,
     extreme_hours,
+    forecast_scale,
     hourly,
     periods,
 )
@@ -311,3 +313,66 @@ async def test_hours_follow_the_price_sensor(
     hass.states.async_set("sensor.price", "0.31", dict(full.attributes))
     await hass.async_block_till_done()
     assert calls == 0
+
+
+def test_forecast_scale() -> None:
+    start = datetime(2026, 9, 28)
+    # Prices in cents or per MWh are brought to the unit of the sensor (EUR/kWh).
+    cents = [(start, 30.0), (start + timedelta(hours=1), 35.0)]
+    mwh = [(start, 300.0), (start + timedelta(hours=1), 350.0)]
+    assert forecast_scale(cents, 0.31) == 0.01
+    assert forecast_scale(mwh, 0.31) == 0.001
+    assert forecast_scale([(start, 0.3)], 0.31) == 1.0
+    # Without a current price or prices there is nothing to compare with.
+    assert forecast_scale(cents, None) == 1.0
+    assert forecast_scale([], 0.31) == 1.0
+
+
+async def test_passed_hours_come_from_the_recorder(
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory, monkeypatch
+) -> None:
+    """Integrations that only list the upcoming prices still give a whole day."""
+    await _prepare(hass, freezer)
+    today = dt_util.start_of_local_day()
+    # Only the upcoming prices (from 11:00) ...
+    state = hass.states.get("sensor.price")
+    upcoming = [
+        item
+        for item in state.attributes["raw_today"]
+        if dt_util.parse_datetime(item["start"]) >= today + timedelta(hours=11)
+    ]
+    hass.states.async_set(
+        "sensor.price", "0.30", {**state.attributes, "raw_today": upcoming}
+    )
+
+    # ... and the hours before that from the recorded prices, with a cheap one.
+    async def recorded(self, entity_id: str):
+        assert entity_id == "sensor.price"
+        return [
+            (today + timedelta(hours=h), 0.01 if h == 3 else 0.3) for h in range(11)
+        ]
+
+    monkeypatch.setattr(HoursCoordinator, "_recorded", recorded)
+    entry = await _with_hours(hass, 3, 0)
+    hours = entry.runtime_data.hours
+    assert hours.data.cheapest == [today + timedelta(hours=h) for h in (3, 13, 14)]
+    assert hours.data.reason is None
+
+
+async def test_reason_when_there_are_no_hours(
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory
+) -> None:
+    await _prepare(hass, freezer)
+    # A price sensor without upcoming prices (and nothing recorded).
+    hass.states.async_set("sensor.price", "0.30", {"unit_of_measurement": "EUR/kWh"})
+    entry = await _with_hours(hass, 3, 0)
+    assert entry.runtime_data.hours.data.reason == "no_prices"
+    assert entry.runtime_data.hours.data.as_dict()["reason"] == "no_prices"
+
+    # Without a source for upcoming prices (switched off in the options).
+    hass.config_entries.async_update_entry(
+        entry, options={**entry.options, "forecast_auto": False}
+    )
+    await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+    assert entry.runtime_data.hours.data.reason == "no_source"
