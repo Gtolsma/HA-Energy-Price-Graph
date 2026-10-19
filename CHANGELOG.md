@@ -5,6 +5,12 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- README: new screenshots (price graph with upcoming prices and markers, gas price graph, average price card with result and timing), options grouped per section and a clearer layout.
+
 ## [1.6.0] - 2026-09-28
 
 ### Added
