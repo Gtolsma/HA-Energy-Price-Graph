@@ -32,6 +32,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
 
 from .const import (
+    CONF_BLOCK_HOURS,
     CONF_CHEAPEST_HOURS,
     CONF_EXPENSIVE_HOURS,
     CONF_FORECAST_ATTRIBUTE,
@@ -221,6 +222,32 @@ def block_starts(hours: Iterable[datetime]) -> list[datetime]:
     return [start for start, _ in periods(hours)]
 
 
+def cheapest_block(
+    prices: dict[datetime, float], count: int, since: datetime
+) -> tuple[datetime, float] | None:
+    """Start and average price of the cheapest run of `count` consecutive hours.
+
+    Only runs that end after `since` and lie completely in the known prices are
+    considered; the earliest one wins a tie.
+    """
+    if count <= 0:
+        return None
+    step = timedelta(hours=1)
+    best: tuple[float, datetime] | None = None
+    for start in sorted(prices):
+        if start + count * step <= since:
+            continue
+        run = [start + i * step for i in range(count)]
+        if not all(hour in prices for hour in run):
+            continue
+        total = sum(prices[hour] for hour in run)
+        if best is None or total < best[0] - 1e-12:
+            best = (total, start)
+    if best is None:
+        return None
+    return best[1], best[0] / count
+
+
 @dataclass
 class HoursData:
     """The cheapest and most expensive hours that are known."""
@@ -230,6 +257,10 @@ class HoursData:
     expensive: list[datetime] = field(default_factory=list)
     cheapest_count: int = 0
     expensive_count: int = 0
+    # The cheapest run of `block_count` consecutive hours that is still to come.
+    block_count: int = 0
+    block_start: datetime | None = None
+    block_average: float | None = None
     # Why there are no hours: "no_source" (no price sensor to take the prices
     # from) or "no_prices" (the sensor gives no upcoming prices).
     reason: str | None = None
@@ -249,6 +280,13 @@ class HoursData:
         now = now or dt_util.now()
         return next((s for s in block_starts(self.hours(kind)) if s > now), None)
 
+    @property
+    def block_end(self) -> datetime | None:
+        """End of the cheapest block."""
+        if self.block_start is None:
+            return None
+        return self.block_start + timedelta(hours=self.block_count)
+
     def as_dict(self) -> dict[str, Any]:
         """For the websocket API (the hours card)."""
         return {
@@ -257,6 +295,8 @@ class HoursData:
             "expensive": [h.isoformat() for h in self.expensive],
             "cheapest_count": self.cheapest_count,
             "expensive_count": self.expensive_count,
+            "block_count": self.block_count,
+            "block_start": self.block_start.isoformat() if self.block_start else None,
             "reason": self.reason,
         }
 
@@ -322,6 +362,11 @@ class HoursCoordinator(DataUpdateCoordinator[HoursData]):
         """Number of most expensive hours per day (0 = off)."""
         return int(self.options.get(CONF_EXPENSIVE_HOURS) or 0)
 
+    @property
+    def block_count(self) -> int:
+        """Number of consecutive hours of the cheapest block (0 = off)."""
+        return int(self.options.get(CONF_BLOCK_HOURS) or 0)
+
     async def _source(self) -> str | None:
         if chosen := self.options.get(CONF_FORECAST_IMPORT_ENTITY):
             return chosen
@@ -376,9 +421,11 @@ class HoursCoordinator(DataUpdateCoordinator[HoursData]):
 
     async def _async_update_data(self) -> HoursData:
         data = HoursData(
-            cheapest_count=self.cheapest_count, expensive_count=self.expensive_count
+            cheapest_count=self.cheapest_count,
+            expensive_count=self.expensive_count,
+            block_count=self.block_count,
         )
-        if not data.cheapest_count and not data.expensive_count:
+        if not (data.cheapest_count or data.expensive_count or data.block_count):
             self._track(None)
             self.update_interval = UPDATE_INTERVAL
             return data
@@ -409,7 +456,9 @@ class HoursCoordinator(DataUpdateCoordinator[HoursData]):
             data.cheapest, data.expensive = calculate(
                 prices, data.cheapest_count, data.expensive_count
             )
-        found = bool(data.cheapest or data.expensive)
+            if block := cheapest_block(prices, data.block_count, dt_util.now()):
+                data.block_start, data.block_average = block
+        found = bool(data.cheapest or data.expensive or data.block_start)
         if found:
             data.reason = None
         self.update_interval = UPDATE_INTERVAL if found else RETRY_INTERVAL

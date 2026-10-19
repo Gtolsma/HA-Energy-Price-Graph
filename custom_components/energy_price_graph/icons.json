@@ -14,6 +14,9 @@
       },
       "next_expensive_hours": {
         "default": "mdi:clock-start"
+      },
+      "cheapest_block": {
+        "default": "mdi:clock-check-outline"
       }
     }
   }

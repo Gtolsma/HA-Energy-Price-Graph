@@ -20,6 +20,7 @@ Show your **dynamic electricity and gas prices** directly in the **built-in Ener
 - ⏰ **Cheap and expensive hours**: a card with today's cheapest and most expensive hours, plus sensors to use in automations
 - 💶 **Average price card**: what you actually paid / received per kWh next to the market average, the result as an amount and your timing
 - 🔥 **Gas price graph** on the Gas tab and, optionally, the Summary tab
+- 💧 **Water costs card** on the Water tab: consumption, price and costs compared with the previous period
 - 🧮 **Sensors** with your average prices and the result compared with the market, for today and this month
 - 🧩 **All cards also on your own dashboards**, from the *Add card* dialog
 - 📅 Follows the Energy dashboard **date picker** (today, yesterday, last week, …)
@@ -53,9 +54,17 @@ On the Gas tab the gas price gets its own graph below the gas consumption graph.
 
 ### ⏰ Cheap and expensive hours
 
-On the Electricity tab, above *Average price*, a card shows the cheapest and most expensive hours of the day as bars, with a line at the current time. **Hover over a coloured block** (or tap it) to see the price of that hour. As soon as tomorrow's prices are known, tomorrow's hours are listed below. The card follows the **date picker**: select yesterday or an earlier day and it shows that day's hours, calculated from the recorded prices. The card appears when *Highlight the cheapest / most expensive hours per day* is set in the options; the same hours are available as [sensors](#-sensors) for automations.
+On the Electricity tab, above *Average price*, a card shows the cheapest and most expensive hours of the day as bars, with a line at the current time. The average price of each run of hours is shown next to its time range. **Hover over a coloured block** (or tap it) to see the price of that hour. As soon as tomorrow's prices are known, tomorrow's hours are listed below. The card follows the **date picker**: select yesterday or an earlier day and it shows that day's hours, calculated from the recorded prices. The card appears when *Highlight the cheapest / most expensive hours per day* is set in the options; the same hours are available as [sensors](#-sensors) for automations.
 
 <img src="https://raw.githubusercontent.com/Gtolsma/HA-Energy-Price-Graph/main/docs/images/hours-card.png" alt="Card with today's cheapest hours (12:00 – 15:00) as a green bar and the most expensive hours (18:00 – 21:00) as an orange bar, a line at the current time, a tooltip with the price of the hovered hour and tomorrow's hours below" width="452">
+
+### 💧 Water costs
+
+On the Water tab, below the water consumption graph, a card shows the **consumption, price and costs** of the selected period next to the period before it, with the change as a percentage and an amount. Below that are the costs **per day** and, for the current month, what the month is **expected to cost** at the pace so far. A month that is not over yet is compared with the same days of the previous month, so the figures are fair. The card follows the **date picker**.
+
+The costs come from the water source in your Energy settings. A fixed price per m³ (or ft³) or a price sensor set there is used; without a price the card says so and only the consumption is shown.
+
+<img src="https://raw.githubusercontent.com/Gtolsma/HA-Energy-Price-Graph/main/docs/images/water-costs.png" alt="Water costs card: consumption, price and costs of October next to September, with the costs per day and the expected costs for the month" width="452">
 
 ### 💶 Average price
 
@@ -97,7 +106,7 @@ With solar panels the export result is usually negative, as in this example: you
 
 ## ⚙️ Options
 
-Go to **Settings → Devices & services → Energy Price Graph → Configure**. The options are grouped in *Price graph*, *Markers in the graph*, *Current price*, *Average price*, *Gas*, *Forecast* and *Advanced*.
+Go to **Settings → Devices & services → Energy Price Graph → Configure**. The options are grouped in *Price graph*, *Markers in the graph*, *Current price*, *Average price*, *Gas*, *Water*, *Forecast* and *Advanced*.
 
 <img src="https://raw.githubusercontent.com/Gtolsma/HA-Energy-Price-Graph/main/docs/images/options.png" alt="Options dialog of Energy Price Graph with the section Markers in the graph opened: lines for the current time and the average price, sliders for the cheapest and most expensive hours, and negative prices" width="560">
 
@@ -119,6 +128,7 @@ Go to **Settings → Devices & services → Energy Price Graph → Configure**. 
 | Show the average price as a line | Off | Horizontal dotted line at the average import price of the period shown, including upcoming prices. |
 | Highlight the cheapest hours per day | 0 (off) | Shades the N cheapest hours of each day green, for example to plan the washing machine or charging. Only days of which at least 20 hours of prices are known are marked, so with a forecast also today and tomorrow. Only at a resolution of an hour or finer. |
 | Highlight the most expensive hours per day | 0 (off) | Shades the N most expensive hours of each day orange, for example to avoid using much power or to discharge a home battery. Same rules as the cheapest hours; an hour is never marked as both. |
+| Cheapest block of consecutive hours | 0 (off) | Looks for the cheapest run of N hours in a row, for example for a washing machine or dishwasher. Used by the *Cheapest block start* [sensor](#-sensors). |
 | Show the cheap and expensive hours card | On | Card above *Average price* on the Electricity tab with today's cheapest and most expensive hours as bars. Only shown when at least one of the two options above is set. |
 | Highlight negative prices | On | Shades the area below zero and draws a zero line when the price is negative. |
 
@@ -147,6 +157,12 @@ Go to **Settings → Devices & services → Energy Price Graph → Configure**. 
 | Show the gas price graph on tabs | Gas | On the Gas tab it is placed below the gas consumption graph; on the Summary tab below the electricity price graph. |
 | Highlight the cheapest hours per day | 0 | Shades the N cheapest hours of each day green in the gas price graph (0 = off). Separate from the electricity setting, because a gas price is often the same all day. |
 | Highlight the most expensive hours per day | 0 | Shades the N most expensive hours of each day orange in the gas price graph (0 = off). |
+
+### 💧 Water
+
+| Option | Default | Description |
+|---|---|---|
+| Show water costs | On | Card on the Water tab with consumption, price and costs. The price comes from the water source in your Energy settings. |
 
 ### 🔮 Forecast (upcoming prices)
 
@@ -199,6 +215,7 @@ The same hours as the green and orange bands in the graph. They need the upcomin
 | Most expensive hours now | **On** during the most expensive hours of the day, with the same attributes |
 | Next cheapest hours | When the next run of cheapest hours starts; *unknown* until tomorrow's prices are known |
 | Next most expensive hours | When the next run of most expensive hours starts |
+| Cheapest block start | Start of the cheapest run of N hours in a row that is still to come (N is *Cheapest block of consecutive hours* in the options). Attributes: `end`, `hours` and `average_price`. Unavailable while that option is 0 |
 
 For example, to switch on the boiler during the cheapest hours:
 
@@ -224,8 +241,9 @@ Everything on the Energy dashboard is also available as a card for your own dash
 | 📈 Price graph | `type: custom:energy-price-graph-card` | `kind: electricity` (default) or `gas`, `title` |
 | 💶 Average price | `type: custom:energy-price-average-card` | `title` |
 | ⏰ Cheap and expensive hours | `type: custom:energy-price-hours-card` | `title` |
+| 💧 Water costs | `type: custom:energy-price-water-card` | `title` |
 
-The price graph, the average price card and the hours card show the period of the **Energy date picker** card, like the built-in energy cards. Add that card to the same dashboard:
+The price graph, the average price card, the hours card and the water costs card show the period of the **Energy date picker** card, like the built-in energy cards. Add that card to the same dashboard:
 
 ```yaml
 type: sections
@@ -237,27 +255,28 @@ sections:
         kind: gas
       - type: custom:energy-price-hours-card
       - type: custom:energy-price-average-card
+      - type: custom:energy-price-water-card
 ```
 
 The hours card shows one day: today when it is in the selected period, otherwise the last day of the period. Without a date picker card it shows today (and tomorrow, once known).
 
 ## 🔍 How it works
 
-The Energy dashboard is generated in the frontend by "view strategies". This integration serves a small JavaScript module and registers it with the frontend. The module reads the integration's options over the websocket API each time the Energy dashboard is built. The module extends the output of the Electricity, Gas and Summary strategies with a standard `statistics-graph` card configured with `energy_date_selection: true`, so it stays in sync with the dashboard's date picker, and adds its own average price and hours cards to the Electricity tab. The sensors and the hours card share the cheapest and most expensive hours calculated by the integration, with the same rules as the bands in the graph.
+The Energy dashboard is generated in the frontend by "view strategies". This integration serves a small JavaScript module and registers it with the frontend. The module reads the integration's options over the websocket API each time the Energy dashboard is built. The module extends the output of the Electricity, Gas, Water and Summary strategies with a standard `statistics-graph` card configured with `energy_date_selection: true`, so it stays in sync with the dashboard's date picker, and adds its own average price and hours cards to the Electricity tab. The sensors and the hours card share the cheapest and most expensive hours calculated by the integration, with the same rules as the bands in the graph.
 
 The cards do not appear in the Energy dashboard's **Customize cards** dialog; use the integration options instead, or add them to your own dashboard (see above).
 
 ## ⚠️ Limitations
 
 - This relies on **internal frontend code** of Home Assistant, not a public API. A future Home Assistant update may break it. If that happens, the Energy dashboard keeps working normally, just without the price graph, and a repair message appears in **Settings → Repairs**. Please open an issue.
-- No water prices yet!
+- The water costs card needs a water source in the Energy settings with a cost statistic or a price.
 
 ## 🩺 Troubleshooting
 
 - **Settings → Repairs** shows a message when the graph could not be added (usually after a Home Assistant update) or when no price sensor is found. The first one disappears by itself once the graph works again.
 - **Settings → Devices & services → Energy Price Graph → ⋮ → Download diagnostics** gives a file with the options, the price sensors found in your Energy settings (names, units and attribute names, no history) and the last status of the frontend module. Please attach it to an [issue](https://github.com/Gtolsma/HA-Energy-Price-Graph/issues).
 - Open the browser console (F12) and look for lines starting with `[energy-price-graph]`:
-  - `active on electricity` / `active on overview` / `active on gas`: the module is loaded on that tab.
+  - `active on electricity` / `active on overview` / `active on gas` / `active on water`: the module is loaded on that tab.
   - `no price sensor found, no price graph added`: no price entity is configured in the Energy settings and no override is set.
 
 ## 👩‍💻 Development

@@ -43,6 +43,7 @@
               "cheapest_hours": "Markera de billigaste timmarna per dag",
               "expensive_hours": "Markera de dyraste timmarna per dag",
               "show_hours_card": "Visa kortet med billiga och dyra timmar",
+              "block_hours": "Billigaste block av sammanhängande timmar",
               "highlight_negative": "Markera negativa priser"
             },
             "data_description": {
@@ -51,6 +52,7 @@
               "cheapest_hours": "Färgar dagens N billigaste timmar (0 = av), till exempel för att planera tvättmaskinen eller laddningen. Endast för dagar där (nästan) alla priser är kända, med prognos alltså även idag och imorgon.",
               "expensive_hours": "Färgar dagens N dyraste timmar orange (0 = av), till exempel för att undvika stor förbrukning eller för att ladda ur ett hembatteri. En timme markeras aldrig som både billigast och dyrast.",
               "show_hours_card": "Kort ovanför Medelpris på fliken El med dagens billigaste och dyraste timmar som staplar. Visas bara när minst ett av de två reglagen ovan är inställt.",
+              "block_hours": "Söker den billigaste följden av N timmar i rad (0 = av), till exempel för tvättmaskin eller diskmaskin. Används av sensorn Start för billigaste blocket, med start, slut och snittpris.",
               "highlight_negative": "Färgar området under noll och ritar en nollinje när priset är negativt."
             }
           },
@@ -100,6 +102,16 @@
               "gas_views": "Flikar i Energi-instrumentpanelen där gasprisgrafen visas.",
               "gas_cheapest_hours": "Färgar de N billigaste timmarna varje dag i gaspris-diagrammet (0 = av). Gaspriset är ofta detsamma hela dagen, därför är detta avstängt som standard.",
               "gas_expensive_hours": "Färgar de N dyraste timmarna varje dag orange i gaspris-diagrammet (0 = av)."
+            }
+          },
+          "water": {
+            "name": "Vatten",
+            "description": "Kort med vattenkostnader.",
+            "data": {
+              "show_water": "Visa vattenkostnad"
+            },
+            "data_description": {
+              "show_water": "Kort på fliken Vatten med förbrukning, pris och kostnad jämfört med föregående period. Priset kommer från vattenkällan i dina energiinställningar."
             }
           },
           "forecast": {
@@ -225,6 +237,9 @@
       },
       "next_expensive_hours": {
         "name": "Nästa dyraste timmar"
+      },
+      "cheapest_block": {
+        "name": "Start för billigaste blocket"
       }
     }
   },

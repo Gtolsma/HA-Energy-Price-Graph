@@ -43,6 +43,7 @@
               "cheapest_hours": "Günstigste Stunden pro Tag hervorheben",
               "expensive_hours": "Teuerste Stunden pro Tag hervorheben",
               "show_hours_card": "Karte mit günstigen und teuren Stunden anzeigen",
+              "block_hours": "Günstigster Block aufeinanderfolgender Stunden",
               "highlight_negative": "Negative Preise hervorheben"
             },
             "data_description": {
@@ -51,6 +52,7 @@
               "cheapest_hours": "Färbt die N günstigsten Stunden jedes Tages (0 = aus), zum Beispiel um Waschmaschine oder Laden zu planen. Nur für Tage, deren Preise (fast) alle bekannt sind, mit Prognose also auch heute und morgen.",
               "expensive_hours": "Färbt die N teuersten Stunden jedes Tages orange (0 = aus), zum Beispiel um großen Verbrauch zu vermeiden oder einen Heimspeicher zu entladen. Eine Stunde ist nie zugleich günstigste und teuerste.",
               "show_hours_card": "Karte über Durchschnittspreis im Tab Strom mit den günstigsten und teuersten Stunden von heute als Balken. Nur sichtbar, wenn mindestens einer der beiden Schieberegler oben eingestellt ist.",
+              "block_hours": "Sucht die günstigste Folge von N Stunden am Stück (0 = aus), zum Beispiel für Waschmaschine oder Geschirrspüler. Wird vom Sensor Start des günstigsten Blocks verwendet, mit Beginn, Ende und Durchschnittspreis.",
               "highlight_negative": "Färbt den Bereich unter null und zeichnet eine Nulllinie, wenn der Preis negativ ist."
             }
           },
@@ -100,6 +102,16 @@
               "gas_views": "Tabs des Energie-Dashboards, auf denen das Gaspreisdiagramm angezeigt wird.",
               "gas_cheapest_hours": "Färbt die N günstigsten Stunden jedes Tages im Gaspreisdiagramm (0 = aus). Gaspreise sind oft den ganzen Tag gleich, deshalb ist dies standardmäßig aus.",
               "gas_expensive_hours": "Färbt die N teuersten Stunden jedes Tages im Gaspreisdiagramm orange (0 = aus)."
+            }
+          },
+          "water": {
+            "name": "Wasser",
+            "description": "Karte mit den Wasserkosten.",
+            "data": {
+              "show_water": "Wasserkosten anzeigen"
+            },
+            "data_description": {
+              "show_water": "Karte auf dem Tab Wasser mit Verbrauch, Preis und Kosten im Vergleich zum vorigen Zeitraum. Der Preis stammt von der Wasserquelle in deinen Energie-Einstellungen."
             }
           },
           "forecast": {
@@ -225,6 +237,9 @@
       },
       "next_expensive_hours": {
         "name": "Nächste teuerste Stunden"
+      },
+      "cheapest_block": {
+        "name": "Start des günstigsten Blocks"
       }
     }
   },

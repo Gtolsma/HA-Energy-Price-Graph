@@ -5,6 +5,18 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.0] - 2026-10-20
+
+### Added
+
+- Water costs card on the Water tab, below the water consumption graph (option *Show water costs*, on by default): consumption, price and costs of the selected period next to the previous period, the costs per day and, for the current month, the expected costs. The price comes from the water source in the Energy settings (a fixed price or a price sensor). It can also be added to your own dashboards as `custom:energy-price-water-card`.
+- Sensor *Cheapest block start* with the start, end and average price of the cheapest run of N hours in a row, for example for the washing machine or dishwasher (option *Cheapest block of consecutive hours*, off by default).
+- Hours card: the average price of each run of hours is shown next to its time range.
+
+### Changed
+
+- Hours card: the price of the hovered hour is shown below the bars, so it no longer covers the time ranges.
+
 ## [1.7.3] - 2026-10-19
 
 ### Fixed
