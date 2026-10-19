@@ -155,6 +155,7 @@ async def async_setup_entry(
         NextHoursSensor(entry.runtime_data.hours, entry, kind)
         for kind in ("cheapest", "expensive")
     )
+    async_add_entities([CheapestBlockSensor(entry.runtime_data.hours, entry)])
 
 
 class PriceStatSensor(CoordinatorEntity[PriceStatsCoordinator], SensorEntity):
@@ -237,3 +238,45 @@ class NextHoursSensor(CoordinatorEntity[HoursCoordinator], SensorEntity):
         """Start of the next run of hours; unknown until tomorrow is known."""
         data = self.coordinator.data
         return data.next_start(self._kind) if data else None
+
+
+class CheapestBlockSensor(CoordinatorEntity[HoursCoordinator], SensorEntity):
+    """When the cheapest run of consecutive hours starts."""
+
+    _attr_has_entity_name = True
+    _attr_device_class = SensorDeviceClass.TIMESTAMP
+    _attr_translation_key = "cheapest_block"
+
+    def __init__(
+        self, coordinator: HoursCoordinator, entry: EnergyPriceGraphConfigEntry
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{entry.entry_id}_cheapest_block"
+        self._attr_device_info = device_info(entry)
+
+    @property
+    def available(self) -> bool:
+        """Unavailable when switched off in the options or without prices."""
+        data = self.coordinator.data
+        return super().available and data is not None and data.block_start is not None
+
+    @property
+    def native_value(self) -> datetime | None:
+        """Start of the cheapest block."""
+        data = self.coordinator.data
+        return data.block_start if data else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        """End, length and average price of the block."""
+        data = self.coordinator.data
+        if not data or data.block_start is None or data.block_end is None:
+            return None
+        return {
+            "end": data.block_end.isoformat(),
+            "hours": data.block_count,
+            "average_price": round(data.block_average, 5)
+            if data.block_average is not None
+            else None,
+        }

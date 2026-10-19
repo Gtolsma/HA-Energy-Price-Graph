@@ -21,6 +21,7 @@ CONF_SHOW_AVERAGE_LINE = "show_average_line"
 CONF_CHEAPEST_HOURS = "cheapest_hours"
 CONF_EXPENSIVE_HOURS = "expensive_hours"
 CONF_SHOW_HOURS_CARD = "show_hours_card"
+CONF_BLOCK_HOURS = "block_hours"
 CONF_HIGHLIGHT_NEGATIVE = "highlight_negative"
 CONF_SHOW_CURRENT = "show_current"
 CONF_SHOW_PRICE_COLORS = "show_price_colors"
@@ -31,6 +32,7 @@ CONF_SHOW_TIMING = "show_timing"
 CONF_IMPORT_SURCHARGE = "import_surcharge"
 CONF_EXPORT_SURCHARGE = "export_surcharge"
 CONF_SHOW_GAS = "show_gas"
+CONF_SHOW_WATER = "show_water"
 CONF_GAS_VIEWS = "gas_views"
 CONF_GAS_CHEAPEST_HOURS = "gas_cheapest_hours"
 CONF_GAS_EXPENSIVE_HOURS = "gas_expensive_hours"
@@ -52,6 +54,7 @@ SECTION_MARKERS = "markers"
 SECTION_CURRENT = "current"
 SECTION_AVERAGE = "average"
 SECTION_GAS = "gas"
+SECTION_WATER = "water"
 SECTION_FORECAST = "forecast"
 SECTION_ADVANCED = "advanced"
 SECTIONS: dict[str, list[str]] = {
@@ -68,6 +71,7 @@ SECTIONS: dict[str, list[str]] = {
         CONF_CHEAPEST_HOURS,
         CONF_EXPENSIVE_HOURS,
         CONF_SHOW_HOURS_CARD,
+        CONF_BLOCK_HOURS,
         CONF_HIGHLIGHT_NEGATIVE,
     ],
     SECTION_CURRENT: [
@@ -88,6 +92,7 @@ SECTIONS: dict[str, list[str]] = {
         CONF_GAS_CHEAPEST_HOURS,
         CONF_GAS_EXPENSIVE_HOURS,
     ],
+    SECTION_WATER: [CONF_SHOW_WATER],
     SECTION_FORECAST: [
         CONF_FORECAST_AUTO,
         CONF_FORECAST_IMPORT_ENTITY,
@@ -122,6 +127,7 @@ DEFAULT_OPTIONS: dict = {
     CONF_CHEAPEST_HOURS: 0,
     CONF_EXPENSIVE_HOURS: 0,
     CONF_SHOW_HOURS_CARD: True,
+    CONF_BLOCK_HOURS: 0,
     CONF_HIGHLIGHT_NEGATIVE: True,
     CONF_SHOW_CURRENT: True,
     CONF_SHOW_PRICE_COLORS: True,
@@ -133,6 +139,7 @@ DEFAULT_OPTIONS: dict = {
     CONF_EXPORT_SURCHARGE: 0,
     CONF_SHOW_GAS: True,
     CONF_GAS_VIEWS: ["gas"],
+    CONF_SHOW_WATER: True,
     CONF_GAS_CHEAPEST_HOURS: 0,
     CONF_GAS_EXPENSIVE_HOURS: 0,
     CONF_FORECAST_AUTO: True,

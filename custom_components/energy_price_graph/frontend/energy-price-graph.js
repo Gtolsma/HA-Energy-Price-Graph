@@ -52,6 +52,7 @@ const OPT = {
   timing: params.get("timing") !== "0",
   importSurcharge: 0,
   exportSurcharge: 0,
+  water: params.get("water") !== "0",
   gas: params.get("gas") !== "0",
   gasViews: (params.get("gas_views") || "gas").split(","),
   gasCheapestHours: Number(params.get("gas_cheapest")) || 0,
@@ -161,6 +162,7 @@ async function loadOptions(hass) {
   OPT.timing = o.show_timing !== false;
   OPT.importSurcharge = num(o.import_surcharge);
   OPT.exportSurcharge = num(o.export_surcharge);
+  OPT.water = o.show_water !== false;
   OPT.gas = o.show_gas !== false;
   OPT.gasViews = Array.isArray(o.gas_views) ? o.gas_views : ["gas"];
   OPT.gasCheapestHours = Math.max(0, Math.round(num(o.gas_cheapest_hours)));
@@ -308,6 +310,19 @@ const LABELS = {
     hoursTitle: "Cheap and expensive hours", cheapest: "Cheapest hours", expensive: "Most expensive hours",
     tomorrow: "Tomorrow", noHours: "No prices for today yet",
     noForecast: "The price sensor does not provide upcoming prices (yet). See Forecast in the options.",
+    avgShort: "avg.",
+    waterTitle: "Water costs",
+    waterThis: "This period",
+    waterPrevious: "Previous period",
+    waterUse: "Consumption",
+    waterPrice: "Price",
+    waterCosts: "Costs",
+    waterPerDay: "Per day",
+    waterExpected: "Expected this month",
+    waterExpectedHelp: "At the pace so far, from the start of the month",
+    waterSameDays: "The previous period is counted up to the same point.",
+    noWater: "No water source in the Energy settings.",
+    waterNoPrice: "No water price set. Add the price in the Energy settings, under the water source.",
     needPicker: "Add the Energy date picker card to this dashboard to choose the period.",
   },
   nl: {
@@ -324,6 +339,19 @@ const LABELS = {
     hoursTitle: "Goedkope en dure uren", cheapest: "Goedkoopste uren", expensive: "Duurste uren",
     tomorrow: "Morgen", noHours: "Nog geen prijzen voor vandaag",
     noForecast: "De prijssensor geeft (nog) geen komende prijzen. Zie Forecast in de opties.",
+    avgShort: "gem.",
+    waterTitle: "Waterkosten",
+    waterThis: "Deze periode",
+    waterPrevious: "Vorige periode",
+    waterUse: "Verbruik",
+    waterPrice: "Prijs",
+    waterCosts: "Kosten",
+    waterPerDay: "Per dag",
+    waterExpected: "Verwacht deze maand",
+    waterExpectedHelp: "Op het tempo tot nu toe, vanaf het begin van de maand",
+    waterSameDays: "De vorige periode is tot hetzelfde moment geteld.",
+    noWater: "Geen watermeter in de Energie-instellingen.",
+    waterNoPrice: "Geen waterprijs ingesteld. Stel de prijs in bij de Energie-instellingen, onder de watermeter.",
     needPicker: "Voeg de kaart Energie-datumkiezer toe aan dit dashboard om de periode te kiezen.",
   },
   de: {
@@ -340,6 +368,19 @@ const LABELS = {
     hoursTitle: "Günstige und teure Stunden", cheapest: "Günstigste Stunden", expensive: "Teuerste Stunden",
     tomorrow: "Morgen", noHours: "Noch keine Preise für heute",
     noForecast: "Der Preissensor liefert (noch) keine kommenden Preise. Siehe Forecast in den Optionen.",
+    avgShort: "Ø",
+    waterTitle: "Wasserkosten",
+    waterThis: "Dieser Zeitraum",
+    waterPrevious: "Voriger Zeitraum",
+    waterUse: "Verbrauch",
+    waterPrice: "Preis",
+    waterCosts: "Kosten",
+    waterPerDay: "Pro Tag",
+    waterExpected: "Erwartet diesen Monat",
+    waterExpectedHelp: "Im bisherigen Tempo, ab Monatsbeginn",
+    waterSameDays: "Der vorige Zeitraum ist bis zum selben Zeitpunkt gerechnet.",
+    noWater: "Keine Wasserquelle in den Energie-Einstellungen.",
+    waterNoPrice: "Kein Wasserpreis festgelegt. Den Preis in den Energie-Einstellungen bei der Wasserquelle eintragen.",
     needPicker: "Füge diesem Dashboard die Karte Energie-Datumsauswahl hinzu, um den Zeitraum zu wählen.",
   },
   sv: {
@@ -356,6 +397,19 @@ const LABELS = {
     hoursTitle: "Billiga och dyra timmar", cheapest: "Billigaste timmarna", expensive: "Dyraste timmarna",
     tomorrow: "Imorgon", noHours: "Inga priser för idag än",
     noForecast: "Prissensorn ger (ännu) inga kommande priser. Se Forecast i alternativen.",
+    avgShort: "snitt",
+    waterTitle: "Vattenkostnad",
+    waterThis: "Denna period",
+    waterPrevious: "Föregående period",
+    waterUse: "Förbrukning",
+    waterPrice: "Pris",
+    waterCosts: "Kostnad",
+    waterPerDay: "Per dag",
+    waterExpected: "Väntat denna månad",
+    waterExpectedHelp: "Med takten hittills, från månadens början",
+    waterSameDays: "Föregående period räknas till samma tidpunkt.",
+    noWater: "Ingen vattenkälla i energiinställningarna.",
+    waterNoPrice: "Inget vattenpris angivet. Ange priset i energiinställningarna, under vattenkällan.",
     needPicker: "Lägg till kortet Energidatumväljare på den här instrumentpanelen för att välja period.",
   },
   da: {
@@ -372,6 +426,19 @@ const LABELS = {
     hoursTitle: "Billige og dyre timer", cheapest: "Billigste timer", expensive: "Dyreste timer",
     tomorrow: "I morgen", noHours: "Ingen priser for i dag endnu",
     noForecast: "Prissensoren giver (endnu) ingen kommende priser. Se Forecast i indstillingerne.",
+    avgShort: "gns.",
+    waterTitle: "Vandomkostninger",
+    waterThis: "Denne periode",
+    waterPrevious: "Forrige periode",
+    waterUse: "Forbrug",
+    waterPrice: "Pris",
+    waterCosts: "Omkostninger",
+    waterPerDay: "Pr. dag",
+    waterExpected: "Forventet denne måned",
+    waterExpectedHelp: "I det tempo indtil nu, fra månedens start",
+    waterSameDays: "Den forrige periode er regnet til samme tidspunkt.",
+    noWater: "Ingen vandkilde i energiindstillingerne.",
+    waterNoPrice: "Ingen vandpris angivet. Angiv prisen i energiindstillingerne under vandkilden.",
     needPicker: "Tilføj kortet Energi-datovælger til dette dashboard for at vælge perioden.",
   },
   nb: {
@@ -388,6 +455,19 @@ const LABELS = {
     hoursTitle: "Billige og dyre timer", cheapest: "Billigste timer", expensive: "Dyreste timer",
     tomorrow: "I morgen", noHours: "Ingen priser for i dag ennå",
     noForecast: "Prissensoren gir (ennå) ingen kommende priser. Se Forecast i innstillingene.",
+    avgShort: "snitt",
+    waterTitle: "Vannkostnader",
+    waterThis: "Denne perioden",
+    waterPrevious: "Forrige periode",
+    waterUse: "Forbruk",
+    waterPrice: "Pris",
+    waterCosts: "Kostnader",
+    waterPerDay: "Per dag",
+    waterExpected: "Forventet denne måneden",
+    waterExpectedHelp: "I tempoet så langt, fra månedens start",
+    waterSameDays: "Forrige periode er regnet til samme tidspunkt.",
+    noWater: "Ingen vannkilde i energiinnstillingene.",
+    waterNoPrice: "Ingen vannpris angitt. Angi prisen i energiinnstillingene, under vannkilden.",
     needPicker: "Legg til kortet Energi-datovelger i dette dashbordet for å velge perioden.",
   },
 };
@@ -651,10 +731,37 @@ function injectGas(view, card) {
   return !!first;
 }
 
+/** Water tab: card below the water consumption graph and the sources table. */
+function injectWater(view, card) {
+  const after = (cards) => {
+    let idx = -1;
+    cards.forEach((c, i) => {
+      if (c.type === "energy-water-graph" || c.type === "energy-sources-table") idx = i;
+    });
+    return idx;
+  };
+  if (Array.isArray(view.cards)) {
+    view.cards.splice(after(view.cards) + 1, 0, card);
+    return true;
+  }
+  for (const section of view.sections || []) {
+    const cards = section.cards || [];
+    const idx = after(cards);
+    if (idx !== -1) {
+      cards.splice(idx + 1, 0, card);
+      return true;
+    }
+  }
+  const first = (view.sections || [])[0];
+  if (first) first.cards = [...(first.cards || []), card];
+  return !!first;
+}
+
 const TARGETS = {
   "energy-view-strategy": { key: "electricity", inject: injectElectricity },
   "energy-overview-view-strategy": { key: "overview", inject: injectOverview },
   "gas-view-strategy": { key: "gas", inject: injectGas },
+  "water-view-strategy": { key: "water", inject: injectWater },
 };
 
 /** Add our cards to a generated Energy view. */
@@ -663,6 +770,10 @@ async function extendView(target, view, config, hass) {
   const found = await findPriceEntities(hass);
   const key = config?.collection_key || "energy_dashboard";
   const L = labels(hass);
+  if (target.key === "water") {
+    if (OPT.water) target.inject(view, waterCard(key, L));
+    return;
+  }
   const showGas = (tab) => OPT.gas && found.gas && OPT.gasViews.includes(tab);
   if (target.key === "gas") {
     if (showGas("gas")) target.inject(view, gasCard(found.gas, key, L));
@@ -1974,6 +2085,16 @@ function hourRuns(hours) {
   return out;
 }
 
+/** Average price of the hours of a run ([start, end] in ms); null without known prices. */
+function runAverage(prices, run) {
+  const values = [];
+  for (let t = run[0]; t < run[1]; t += HOUR) {
+    const v = prices.get(t);
+    if (typeof v === "number" && Number.isFinite(v)) values.push(v);
+  }
+  return values.length ? values.reduce((a, b) => a + b, 0) / values.length : null;
+}
+
 /** Local midnight at the end of the day that starts at `day` (23 to 25 hours later). */
 function nextMidnight(day) {
   return localMidnight(day + 1.5 * DAY);
@@ -2240,9 +2361,15 @@ class EnergyPriceHoursCard extends (globalThis.HTMLElement ?? class {}) {
         const blocks = runs
           .map((r) => `<i style="left:${pos(r[0])};width:calc(${pos(r[1])} - ${pos(r[0])});background:${esc(col[k])}"></i>`)
           .join("");
-        const spans = runs.map((r) => this._span(r)).join(", ");
+        const entity = this._config?.import_entity;
+        const spans = runs
+          .map((r) => {
+            const avg = entity ? runAverage(prices, r) : null;
+            return avg == null ? this._span(r) : `${this._span(r)} (${L.avgShort || "avg."} ${this._price(entity, avg)})`;
+          })
+          .join(", ");
         return `
-          <div class="label"><span>${esc(L[k])}</span><span class="muted">${esc(spans)}</span></div>
+          <div class="label"><span>${esc(L[k])}</span><span class="muted spans">${esc(spans)}</span></div>
           <div class="bar" data-k="${k}">${blocks}<em class="hl"></em>${isToday ? `<b style="left:${pos(now)}"></b>` : ""}</div>`;
       });
       const tomorrow = isToday
@@ -2281,6 +2408,7 @@ class EnergyPriceHoursCard extends (globalThis.HTMLElement ?? class {}) {
         .content { padding: 12px 16px 16px; position: relative; }
         .day { margin-bottom: 6px; text-transform: capitalize; }
         .label { display: flex; justify-content: space-between; gap: 8px; margin: 4px 0 6px; }
+        .spans { text-align: right; }
         .label + .bar, .bar { margin-bottom: 10px; }
         .bar { position: relative; height: 24px; border-radius: 6px; overflow: hidden; touch-action: pan-y;
           background: var(--secondary-background-color, rgba(127,127,127,0.15)); }
@@ -2318,7 +2446,8 @@ class EnergyPriceHoursCard extends (globalThis.HTMLElement ?? class {}) {
     const { start, end, prices, hours } = this._shown;
     const entity = this._config?.import_entity;
     const span = end - start;
-    root.querySelectorAll(".bar").forEach((bar) => {
+    const bars = [...root.querySelectorAll(".bar")];
+    bars.forEach((bar) => {
       const hl = bar.querySelector(".hl");
       const hide = () => {
         tip.style.display = "none";
@@ -2346,13 +2475,415 @@ class EnergyPriceHoursCard extends (globalThis.HTMLElement ?? class {}) {
         const half = tip.offsetWidth / 2;
         const x = Math.min(Math.max(ev.clientX - box.left, half), Math.max(half, box.width - half));
         tip.style.left = `${x - half}px`;
-        tip.style.top = `${rect.top - box.top - tip.offsetHeight - 6}px`;
+        // Below the bars (over the time axis), so the time ranges above them stay readable.
+        const last = bars[bars.length - 1].getBoundingClientRect();
+        tip.style.top = `${last.bottom - box.top + 4}px`;
       };
       bar.addEventListener("pointermove", show);
       bar.addEventListener("pointerdown", show);
       bar.addEventListener("pointerleave", hide);
       bar.addEventListener("pointercancel", hide);
     });
+  }
+}
+
+/* ------------------------------------------------------------------------ *
+ * Water costs card
+ *
+ * Consumption, price and costs of the water source from the Energy settings
+ * for the selected period, next to the period before it, with the costs per
+ * day and, for the current month, what the month is expected to cost. The
+ * costs come from the cost statistic of the source; without one they are the
+ * consumption times the price (a fixed price per m³, or the average of a price
+ * sensor). Follows the Energy date picker.
+ * ------------------------------------------------------------------------ */
+
+const WATER_CARD = "energy-price-water-card";
+
+function waterCard(collectionKey, L) {
+  return {
+    type: `custom:${WATER_CARD}`,
+    title: L.waterTitle,
+    collection_key: collectionKey,
+    labels: L,
+  };
+}
+
+/** Unit of the water statistics in the Energy dashboard: m³, or ft³ for imperial. */
+function waterUnit(hass) {
+  return hass?.config?.unit_system?.length === "km" ? "m³" : "ft³";
+}
+
+/** Water sources of the energy prefs: statistic ids and the price, if one is set. */
+function waterSources(prefs, info) {
+  const costs = info?.cost_sensors || {};
+  const out = [];
+  for (const src of prefs?.energy_sources || []) {
+    if (src.type !== "water" || !src.stat_energy_from) continue;
+    out.push({
+      energy: src.stat_energy_from,
+      cost: src.stat_cost || costs[src.stat_energy_from] || null,
+      fixed: typeof src.number_energy_price === "number" ? src.number_energy_price : null,
+      priceEntity: src.entity_energy_price || null,
+    });
+  }
+  return out;
+}
+
+/** Sum of the `change` of statistic rows; null without rows. */
+function sumChange(rows) {
+  if (!Array.isArray(rows)) return null;
+  let sum = 0;
+  let any = false;
+  for (const r of rows) {
+    if (typeof r?.change === "number" && Number.isFinite(r.change)) {
+      sum += r.change;
+      any = true;
+    }
+  }
+  return any ? sum : null;
+}
+
+/**
+ * Consumption, costs and price of one period. `stats` maps a statistic id to
+ * its rows, `prices` maps a price sensor to its average over the period.
+ */
+function waterPeriod(stats, sources, prices = {}) {
+  let volume = null;
+  let cost = null;
+  let fallback = null;
+  for (const s of sources) {
+    const v = sumChange(stats[s.energy]);
+    if (v != null) volume = (volume || 0) + v;
+    const price = s.fixed ?? prices[s.priceEntity] ?? null;
+    if (fallback == null) fallback = price;
+    let c = s.cost ? sumChange(stats[s.cost]) : null;
+    if (c == null && v != null && price != null) c = v * price;
+    if (c != null) cost = (cost || 0) + c;
+  }
+  const price = volume > 0 && cost != null ? cost / volume : fallback;
+  return { volume, cost, price };
+}
+
+/** Whether a period is one calendar month (start on the 1st, ends within that month). */
+function monthPeriod(start, end, now = Date.now()) {
+  const d = new Date(start);
+  if (d.getDate() !== 1 || localMidnight(start) !== start) return false;
+  const next = new Date(d.getFullYear(), d.getMonth() + 1, 1).getTime();
+  return (end ?? now) <= next;
+}
+
+/**
+ * The period before the selected one: the calendar month before a month, else
+ * as long as the period. A period that is not over yet (this month, today) is
+ * compared with the same part of the previous one, so the figures are fair.
+ */
+function previousPeriod(start, end, now = Date.now()) {
+  let prev;
+  if (monthPeriod(start, end, now)) {
+    const d = new Date(start);
+    prev = { start: new Date(d.getFullYear(), d.getMonth() - 1, 1).getTime(), end: start };
+  } else {
+    const length = Math.max((end ?? now) - start, DAY);
+    prev = { start: start - length, end: start };
+  }
+  if (end != null && end <= now) return { ...prev, partial: false };
+  const cut = prev.start + Math.max(now - start, 0);
+  return cut < prev.end ? { start: prev.start, end: cut, partial: true } : { ...prev, partial: false };
+}
+
+/** Costs per day over the part of the period that has passed (at least one day). */
+function costPerDay(cost, start, end, now = Date.now()) {
+  if (cost == null) return null;
+  return cost / Math.max((Math.min(end ?? now, now) - start) / DAY, 1);
+}
+
+/** What the current month will cost at the pace so far; null for other periods or the first day. */
+function monthOutlook(cost, start, end, now = Date.now()) {
+  if (cost == null || !monthPeriod(start, end, now)) return null;
+  const d = new Date(start);
+  const next = new Date(d.getFullYear(), d.getMonth() + 1, 1).getTime();
+  if (now < start || now >= next) return null;
+  const elapsed = (now - start) / DAY;
+  if (elapsed < 1) return null;
+  return (cost / elapsed) * Math.round((next - start) / DAY);
+}
+
+class EnergyPriceWaterCard extends (globalThis.HTMLElement ?? class {}) {
+  setConfig(config) {
+    this._config = config || {};
+    if (!this.shadowRoot) this.attachShadow({ mode: "open" });
+    this._render();
+    if (this._data && this._hass) this._update(this._data);
+  }
+
+  set hass(hass) {
+    this._hass = hass;
+    if (this.isConnected) this._subscribe();
+  }
+
+  get hass() {
+    return this._hass;
+  }
+
+  connectedCallback() {
+    this._subscribe();
+  }
+
+  disconnectedCallback() {
+    this._unsub?.();
+    this._unsub = undefined;
+    clearTimeout(this._retry);
+    clearTimeout(this._retryLoad);
+  }
+
+  getCardSize() {
+    return 4;
+  }
+
+  getGridOptions() {
+    return { columns: 12, min_columns: 6, rows: "auto" };
+  }
+
+  static getStubConfig() {
+    return {};
+  }
+
+  _subscribe() {
+    if (this._unsub || !this._hass || !this._config) return;
+    if (!this._config.labels) {
+      this._autoConfig();
+      return;
+    }
+    const collection = this._hass.connection?.[collectionProp(this._config.collection_key)];
+    if (!collection?.subscribe) {
+      clearTimeout(this._retry);
+      this._waited = (this._waited || 0) + 1;
+      if (this._waited === 10) this._render();
+      this._retry = setTimeout(() => this._subscribe(), 500);
+      return;
+    }
+    this._waited = 0;
+    this._unsub = collection.subscribe((data) => this._update(data));
+  }
+
+  async _autoConfig() {
+    if (this._autoPending) return;
+    this._autoPending = true;
+    try {
+      this._config = await standaloneConfig(this._hass, (found, key, L) => waterCard(key, L), this._config);
+      this._render();
+      this._subscribe();
+    } catch (e) {
+      console.warn(TAG, "could not set up the water costs card", e);
+    } finally {
+      this._autoPending = false;
+    }
+  }
+
+  async _update(data) {
+    this._data = data;
+    clearTimeout(this._retryLoad);
+    const run = (this._run = (this._run || 0) + 1);
+    const sources = waterSources(data?.prefs, data?.info);
+    let result = { sources: sources.length };
+    let failed = false;
+    if (sources.length && data?.start) {
+      try {
+        result = { ...result, ...(await this._compute(data, sources)) };
+      } catch (e) {
+        failed = true;
+        console.warn(TAG, "could not load the water statistics, retrying", e);
+      }
+    }
+    if (run !== this._run) return; // a newer period was selected meanwhile
+    this._result = result;
+    this._render();
+    // The recorder may still be starting (e.g. right after a restart): retry.
+    if (failed && this.isConnected) this._retryLoad = setTimeout(() => this._data && this._update(this._data), 15000);
+  }
+
+  async _compute(data, sources) {
+    const now = Date.now();
+    const start = data.start.getTime();
+    const end = data.end ? data.end.getTime() : null;
+    const prev = previousPeriod(start, end, now);
+    const ids = [...new Set(sources.flatMap((s) => [s.energy, s.cost]).filter(Boolean))];
+    const res = await this._hass.callWS({
+      type: "recorder/statistics_during_period",
+      start_time: new Date(prev.start).toISOString(),
+      ...(end && { end_time: new Date(end).toISOString() }),
+      statistic_ids: ids,
+      period: marketPeriod(prev.start, end),
+      types: ["change"],
+      units: { volume: waterUnit(this._hass) },
+    });
+    const within = (from, to) => {
+      const out = {};
+      for (const id of ids) {
+        out[id] = (res?.[id] || []).filter((r) => {
+          const t = toMs(r.start);
+          return t >= from && (to == null || t < to);
+        });
+      }
+      return out;
+    };
+    // A price sensor is only needed when a source has neither a cost statistic nor a fixed price.
+    const sensors = [...new Set(sources.filter((s) => s.priceEntity && s.fixed == null).map((s) => s.priceEntity))];
+    let currentPrices = {};
+    let previousPrices = {};
+    if (sensors.length) {
+      try {
+        currentPrices = await marketAverages(this._hass, data.start, data.end, sensors);
+        previousPrices = await marketAverages(this._hass, new Date(prev.start), new Date(prev.end), sensors);
+      } catch (e) {
+        console.warn(TAG, "could not load the water price", e);
+      }
+    }
+    const current = waterPeriod(within(start, null), sources, currentPrices);
+    const previous = waterPeriod(within(prev.start, prev.end), sources, previousPrices);
+    return {
+      current,
+      previous,
+      start,
+      end,
+      month: monthPeriod(start, end, now),
+      partial: prev.partial,
+      previousStart: prev.start,
+      perDay: costPerDay(current.cost, start, end, now),
+      outlook: monthOutlook(current.cost, start, end, now),
+    };
+  }
+
+  _number(value, digits) {
+    return new Intl.NumberFormat(lang(this._hass), {
+      minimumFractionDigits: digits,
+      maximumFractionDigits: digits,
+    }).format(value);
+  }
+
+  _volume(value) {
+    if (value == null) return "—";
+    const digits = Math.abs(value) < 10 ? 2 : 1;
+    return `${this._number(value, digits)} ${waterUnit(this._hass)}`;
+  }
+
+  _price(value) {
+    if (value == null) return "—";
+    return `${this._number(value, 2)} ${currencySymbol(this._hass)}/${waterUnit(this._hass)}`.replace(/\s+/g, " ");
+  }
+
+  _cost(value, signed = false) {
+    if (value == null) return "—";
+    const currency = this._hass?.config?.currency;
+    try {
+      return new Intl.NumberFormat(lang(this._hass), {
+        ...(currency ? { style: "currency", currency } : { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+        ...(signed && { signDisplay: "exceptZero" }),
+      }).format(value);
+    } catch (e) {
+      return value.toFixed(2);
+    }
+  }
+
+  /** Change compared with the previous period; more water or higher costs is shown as worse. */
+  _change(now, before, money = false) {
+    if (now == null || before == null || !before) return "";
+    const rel = (now - before) / Math.abs(before);
+    if (Math.abs(rel) < 0.0005) return "";
+    const parts = [
+      new Intl.NumberFormat(lang(this._hass), {
+        style: "percent",
+        maximumFractionDigits: 1,
+        signDisplay: "exceptZero",
+      }).format(rel),
+    ];
+    if (money) parts.push(this._cost(now - before, true));
+    return `<span class="diff ${rel > 0 ? "bad" : "good"}">${parts.join('<span class="sep">·</span>')}</span>`;
+  }
+
+  _names(r, L) {
+    if (r.month) {
+      const month = (t) =>
+        new Intl.DateTimeFormat(lang(this._hass), { month: "long" }).format(new Date(t));
+      return [month(r.start), month(r.previousStart)];
+    }
+    return [L.waterThis, L.waterPrevious];
+  }
+
+  _row(name, now, before, text, money = false) {
+    return `
+      <div class="row">
+        <div class="name">${esc(name)}</div>
+        <div class="you">${text(now)}${this._change(now, before, money)}</div>
+        <div class="market">${text(before)}</div>
+      </div>`;
+  }
+
+  _footer(name, value, help) {
+    return `
+      <div class="footer"${help ? ` title="${esc(help)}"` : ""}>
+        <span>${esc(name)}</span><span class="value">${this._cost(value)}</span>
+      </div>`;
+  }
+
+  _render() {
+    if (!this.shadowRoot || !this._config) return;
+    const c = this._config;
+    const L = c.labels || {};
+    const r = this._result;
+    let body;
+    if (!r) {
+      body = `<div class="loading">${this._waited >= 10 && L.needPicker ? esc(L.needPicker) : "…"}</div>`;
+    } else if (!r.sources) {
+      body = `<div class="loading">${esc(L.noWater)}</div>`;
+    } else if (!r.current) {
+      body = `<div class="loading">…</div>`;
+    } else {
+      const [now, before] = this._names(r, L);
+      const cur = r.current;
+      const prev = r.previous;
+      body = `
+        <div class="row head">
+          <div></div><div class="you">${esc(now)}</div><div class="market">${esc(before)}</div>
+        </div>
+        ${r.partial && L.waterSameDays ? `<div class="note">${esc(L.waterSameDays)}</div>` : ""}
+        ${this._row(L.waterUse, cur.volume, prev.volume, (v) => this._volume(v))}
+        ${this._row(L.waterPrice, cur.price, prev.price, (v) => this._price(v))}
+        ${this._row(L.waterCosts, cur.cost, prev.cost, (v) => this._cost(v), true)}
+        ${cur.cost == null ? `<div class="loading">${esc(L.waterNoPrice)}</div>` : ""}
+        ${r.perDay != null ? this._footer(L.waterPerDay, r.perDay) : ""}
+        ${r.outlook != null ? this._footer(L.waterExpected, r.outlook, L.waterExpectedHelp) : ""}`;
+    }
+    this.shadowRoot.innerHTML = `
+      <style>
+        ha-card { height: 100%; }
+        .card-header { padding: 16px 16px 0; font-size: var(--ha-card-header-font-size, 24px);
+          font-weight: var(--ha-font-weight-normal, 400); line-height: 32px;
+          color: var(--ha-card-header-color, var(--primary-text-color)); }
+        .content { padding: 12px 16px 16px; }
+        .row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+          gap: 8px; align-items: baseline; padding: 6px 0; }
+        .row + .row { border-top: 1px solid var(--divider-color); }
+        .head { font-size: var(--ha-font-size-s, 12px); color: var(--secondary-text-color); padding-top: 0;
+          text-transform: capitalize; }
+        .you { font-weight: var(--ha-font-weight-medium, 500); text-align: end; }
+        .market { color: var(--secondary-text-color); text-align: end; }
+        .diff { display: block; font-size: var(--ha-font-size-s, 12px); font-weight: 400; white-space: nowrap; }
+        .sep { margin: 0 6px; color: var(--secondary-text-color); }
+        .good { color: var(--success-color, #43a047); }
+        .bad { color: var(--error-color, #db4437); }
+        .loading { color: var(--secondary-text-color); padding-top: 4px; }
+        .note { color: var(--secondary-text-color); font-size: var(--ha-font-size-s, 12px); padding-bottom: 4px; }
+        .footer { display: flex; justify-content: space-between; align-items: baseline; gap: 8px;
+          margin-top: 6px; padding-top: 10px; border-top: 1px solid var(--divider-color); }
+        .footer[title] { cursor: help; }
+        .footer .value { font-weight: var(--ha-font-weight-medium, 500); text-align: end; }
+      </style>
+      <ha-card>
+        ${c.title ? `<div class="card-header">${esc(c.title)}</div>` : ""}
+        <div class="content">${body}</div>
+      </ha-card>`;
   }
 }
 
@@ -2463,6 +2994,7 @@ function defineAverageCard(reg, get) {
   const cards = [
     [AVG_CARD, EnergyPriceAverageCard],
     [HOURS_CARD, EnergyPriceHoursCard],
+    [WATER_CARD, EnergyPriceWaterCard],
     [GRAPH_CARD, EnergyPriceGraphCard],
   ];
   for (const [tag, base] of cards) {
@@ -2499,6 +3031,12 @@ function registerCardPicker() {
       name: "Energy Price Graph: cheap and expensive hours",
       description: "Today's cheapest and most expensive hours as bars.",
       documentationURL: docs,
+    },
+    {
+      type: WATER_CARD,
+      name: "Energy Price Graph: water costs",
+      description: "Water consumption, price and costs compared with the previous period.",
+      documentationURL: docs,
     }
   );
 }
@@ -2516,6 +3054,13 @@ if (globalThis.window?.customElements) {
 // only for its side effects.
 export {
   cheapestHourSet,
+  costPerDay,
+  monthOutlook,
+  monthPeriod,
+  previousPeriod,
+  sumChange,
+  waterPeriod,
+  waterSources,
   collectionProp,
   expensiveHourSet,
   finePeriod,
@@ -2523,6 +3068,7 @@ export {
   forecastScale,
   gridStatIds,
   hourRuns,
+  runAverage,
   dayHours,
   hourlyPrices,
   nextMidnight,

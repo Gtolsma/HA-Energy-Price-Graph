@@ -83,6 +83,8 @@ async def test_setup_registers_module(
     assert options["price_color_threshold"] == 10
     assert options["gas_views"] == ["gas"]
     # The gas graph has its own hours, off by default (a gas price is often flat).
+    assert options["block_hours"] == 0
+    assert options["show_water"] is True
     assert options["gas_cheapest_hours"] == 0
     assert options["gas_expensive_hours"] == 0
     assert options["forecast_auto"] is True
@@ -140,6 +142,7 @@ async def test_options_flow_updates_options(
             show_average_line=True,
             cheapest_hours=3,
             expensive_hours=2,
+            block_hours=4,
             highlight_negative=False,
             show_current=False,
             show_price_colors=False,
@@ -151,6 +154,7 @@ async def test_options_flow_updates_options(
             export_surcharge=-0.02,
             show_gas=False,
             gas_views=[],
+            show_water=False,
             gas_cheapest_hours=2,
             gas_expensive_hours=1,
             forecast_auto=False,
@@ -180,12 +184,14 @@ async def test_options_flow_updates_options(
     assert options["show_average_line"] is True
     assert options["cheapest_hours"] == 3
     assert options["expensive_hours"] == 2
+    assert options["block_hours"] == 4
     assert options["highlight_negative"] is False
     assert options["price_color_threshold"] == 15
     assert options["show_timing"] is False
     assert options["import_surcharge"] == 0.12
     assert options["export_surcharge"] == -0.02
     assert options["gas_views"] == []
+    assert options["show_water"] is False
     assert options["gas_cheapest_hours"] == 2
     assert options["gas_expensive_hours"] == 1
     assert options["forecast_auto"] is False

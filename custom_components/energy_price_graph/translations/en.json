@@ -43,6 +43,7 @@
               "cheapest_hours": "Highlight the cheapest hours per day",
               "expensive_hours": "Highlight the most expensive hours per day",
               "show_hours_card": "Show the cheap and expensive hours card",
+              "block_hours": "Cheapest block of consecutive hours",
               "highlight_negative": "Highlight negative prices"
             },
             "data_description": {
@@ -51,6 +52,7 @@
               "cheapest_hours": "Shades the N cheapest hours of each day (0 = off), for example to plan the washing machine or charging. Only for days of which (almost) all prices are known, so with a forecast also today and tomorrow.",
               "expensive_hours": "Shades the N most expensive hours of each day orange (0 = off), for example to avoid using much power or to discharge a home battery. An hour is never marked as both cheapest and most expensive.",
               "show_hours_card": "Card above Average price on the Electricity tab with today's cheapest and most expensive hours as bars. Only shown when at least one of the two sliders above is set.",
+              "block_hours": "Looks for the cheapest run of N hours in a row (0 = off), for example for a washing machine or dishwasher. Used by the sensor Cheapest block start, which gives the start, the end and the average price.",
               "highlight_negative": "Shades the area below zero and draws a zero line when the price is negative."
             }
           },
@@ -100,6 +102,16 @@
               "gas_views": "Tabs of the Energy dashboard where the gas price graph is shown.",
               "gas_cheapest_hours": "Shades the N cheapest hours of each day in the gas price graph (0 = off). Gas prices are often the same all day, so this is off by default.",
               "gas_expensive_hours": "Shades the N most expensive hours of each day orange in the gas price graph (0 = off)."
+            }
+          },
+          "water": {
+            "name": "Water",
+            "description": "Water costs card.",
+            "data": {
+              "show_water": "Show water costs"
+            },
+            "data_description": {
+              "show_water": "Card on the Water tab with consumption, price and costs compared with the previous period. The price comes from the water source in your energy settings."
             }
           },
           "forecast": {
@@ -225,6 +237,9 @@
       },
       "next_expensive_hours": {
         "name": "Next most expensive hours"
+      },
+      "cheapest_block": {
+        "name": "Cheapest block start"
       }
     }
   },

@@ -6,6 +6,7 @@ import { describe, it } from "node:test";
 import {
   cheapestHourSet,
   collectionProp,
+  costPerDay,
   dayHours,
   expensiveHourSet,
   finePeriod,
@@ -16,13 +17,20 @@ import {
   hourlyPrices,
   levelFor,
   marketPeriod,
+  monthOutlook,
+  monthPeriod,
   nextMidnight,
   paidAverage,
+  previousPeriod,
+  runAverage,
   runData,
   savings,
   shownDay,
+  sumChange,
   timeWeightedMean,
   timingShares,
+  waterPeriod,
+  waterSources,
   withForecast,
   withOverlays,
 } from "../../custom_components/energy_price_graph/frontend/energy-price-graph.js";
@@ -286,6 +294,20 @@ describe("hourRuns", () => {
   });
 });
 
+describe("runAverage", () => {
+  it("averages the known prices of the hours in a run", () => {
+    const prices = new Map([
+      [T0 + 13 * HOUR, 0.04],
+      [T0 + 14 * HOUR, 0.02],
+      [T0 + 15 * HOUR, 0.12],
+    ]);
+    assert.ok(Math.abs(runAverage(prices, [T0 + 13 * HOUR, T0 + 15 * HOUR]) - 0.03) < 1e-12);
+    // Hours without a price are left out; without any price there is no average.
+    assert.ok(Math.abs(runAverage(prices, [T0 + 15 * HOUR, T0 + 17 * HOUR]) - 0.12) < 1e-12);
+    assert.equal(runAverage(prices, [T0 + 2 * HOUR, T0 + 4 * HOUR]), null);
+  });
+});
+
 describe("shownDay", () => {
   const at = (s) => new Date(Date.parse(s));
   const NOW = Date.parse("2026-09-28T15:00:00+02:00");
@@ -460,5 +482,110 @@ describe("periods", () => {
   it("marketPeriod uses hours up to 35 days", () => {
     assert.equal(marketPeriod(new Date(now - 30 * 86400000), null, new Date(now)), "hour");
     assert.equal(marketPeriod(new Date(now - 60 * 86400000), null, new Date(now)), "day");
+  });
+});
+
+describe("water", () => {
+  const start = (y, m, d = 1) => new Date(y, m, d).getTime();
+  const rows = (...changes) => changes.map((change, i) => ({ start: i, change }));
+
+  it("finds the water sources and their price in the energy prefs", () => {
+    const prefs = {
+      energy_sources: [
+        { type: "grid", stat_energy_from: "sensor.grid" },
+        { type: "water", stat_energy_from: "sensor.water", stat_cost: "sensor.water_cost", number_energy_price: 1.5 },
+        { type: "water", stat_energy_from: "sensor.garden", entity_energy_price: "sensor.garden_price" },
+        { type: "water" },
+      ],
+    };
+    const info = { cost_sensors: { "sensor.garden": "sensor.garden_costs" } };
+    assert.deepEqual(waterSources(prefs, info), [
+      { energy: "sensor.water", cost: "sensor.water_cost", fixed: 1.5, priceEntity: null },
+      { energy: "sensor.garden", cost: "sensor.garden_costs", fixed: null, priceEntity: "sensor.garden_price" },
+    ]);
+    assert.deepEqual(waterSources({ energy_sources: [] }, null), []);
+  });
+
+  it("sums the changes of statistic rows", () => {
+    assert.equal(sumChange(rows(1, 2.5, 0)), 3.5);
+    assert.equal(sumChange([]), null);
+    assert.equal(sumChange(undefined), null);
+  });
+
+  it("takes the costs from the cost statistic, else consumption times the price", () => {
+    const withCost = [{ energy: "e", cost: "c", fixed: 1, priceEntity: null }];
+    const r = waterPeriod({ e: rows(2, 3), c: rows(10, 15) }, withCost);
+    assert.deepEqual(r, { volume: 5, cost: 25, price: 5 });
+    // No cost statistic: fixed price.
+    const fixed = [{ energy: "e", cost: null, fixed: 4, priceEntity: null }];
+    assert.deepEqual(waterPeriod({ e: rows(2, 3) }, fixed), { volume: 5, cost: 20, price: 4 });
+    // No cost statistic: average of a price sensor.
+    const sensor = [{ energy: "e", cost: null, fixed: null, priceEntity: "p" }];
+    assert.deepEqual(waterPeriod({ e: rows(5) }, sensor, { p: 3 }), { volume: 5, cost: 15, price: 3 });
+    // Nothing known: no costs, no price.
+    assert.deepEqual(waterPeriod({ e: rows(5) }, sensor), { volume: 5, cost: null, price: null });
+    // No consumption in the period: the price is still shown.
+    assert.deepEqual(waterPeriod({ e: [] }, fixed), { volume: null, cost: null, price: 4 });
+  });
+
+  it("knows calendar months", () => {
+    const now = start(2026, 9, 19);
+    assert.equal(monthPeriod(start(2026, 9), start(2026, 10) - 1, now), true);
+    assert.equal(monthPeriod(start(2026, 9), null, now), true);
+    assert.equal(monthPeriod(start(2026, 9, 5), null, now), false);
+    assert.equal(monthPeriod(start(2026, 8), start(2026, 10), now), false);
+  });
+
+  it("compares with the month before a month, else with a period of the same length", () => {
+    const now = start(2026, 9, 19);
+    // A finished month: the whole month before.
+    assert.deepEqual(previousPeriod(start(2026, 8), start(2026, 9) - 1, now), {
+      start: start(2026, 7),
+      end: start(2026, 8),
+      partial: false,
+    });
+    assert.deepEqual(previousPeriod(start(2026, 0), start(2026, 1) - 1, start(2026, 5)), {
+      start: start(2025, 11),
+      end: start(2026, 0),
+      partial: false,
+    });
+    const week = previousPeriod(start(2026, 9, 12), start(2026, 9, 19), now);
+    assert.deepEqual(week, { start: start(2026, 9, 5), end: start(2026, 9, 12), partial: false });
+  });
+
+  it("compares a period that is not over with the same part of the previous one", () => {
+    const now = start(2026, 9, 19);
+    // October so far (the picker ends at the end of the month): 18 days.
+    assert.deepEqual(previousPeriod(start(2026, 9), start(2026, 10) - 1, now), {
+      start: start(2026, 8),
+      end: start(2026, 8, 19),
+      partial: true,
+    });
+    assert.deepEqual(previousPeriod(start(2026, 9), null, now), {
+      start: start(2026, 8),
+      end: start(2026, 8, 19),
+      partial: true,
+    });
+    // Today so far, until 15:00, against yesterday until 15:00.
+    const three = start(2026, 9, 19) + 15 * HOUR;
+    assert.deepEqual(previousPeriod(start(2026, 9, 19), null, three), {
+      start: start(2026, 9, 18),
+      end: start(2026, 9, 18) + 15 * HOUR,
+      partial: true,
+    });
+  });
+
+  it("calculates the costs per day and what the month will cost", () => {
+    const noon = start(2026, 9, 11) + 12 * HOUR; // 10.5 days into October
+    assert.equal(costPerDay(21, start(2026, 9), null, noon), 2);
+    assert.equal(costPerDay(null, start(2026, 9), null, noon), null);
+    // Less than a day: the costs so far are the costs of the day.
+    assert.equal(costPerDay(3, start(2026, 9, 11), null, noon), 3);
+    assert.equal(monthOutlook(21, start(2026, 9), null, noon), 62);
+    assert.equal(monthOutlook(21, start(2026, 9), start(2026, 10) - 1, noon), 62);
+    // Not for other periods, finished months or the first day.
+    assert.equal(monthOutlook(21, start(2026, 9, 5), null, noon), null);
+    assert.equal(monthOutlook(21, start(2026, 8), start(2026, 9) - 1, noon), null);
+    assert.equal(monthOutlook(1, start(2026, 9), null, start(2026, 9) + 5 * HOUR), null);
   });
 });

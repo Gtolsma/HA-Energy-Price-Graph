@@ -15,6 +15,7 @@ from custom_components.energy_price_graph.hours import (
     HoursData,
     attribute_points,
     calculate,
+    cheapest_block,
     extreme_hours,
     forecast_scale,
     hourly,
@@ -178,7 +179,9 @@ async def _prepare(
     )
 
 
-async def _with_hours(hass: HomeAssistant, cheapest: int, expensive: int):
+async def _with_hours(
+    hass: HomeAssistant, cheapest: int, expensive: int, block: int = 0
+):
     entry = await _setup(hass)
     hass.config_entries.async_update_entry(
         entry,
@@ -186,6 +189,7 @@ async def _with_hours(hass: HomeAssistant, cheapest: int, expensive: int):
             **entry.options,
             "cheapest_hours": cheapest,
             "expensive_hours": expensive,
+            "block_hours": block,
         },
     )
     await hass.config_entries.async_reload(entry.entry_id)
@@ -376,3 +380,47 @@ async def test_reason_when_there_are_no_hours(
     await hass.config_entries.async_reload(entry.entry_id)
     await hass.async_block_till_done()
     assert entry.runtime_data.hours.data.reason == "no_source"
+
+
+def test_cheapest_block() -> None:
+    start = datetime(2026, 9, 28, tzinfo=dt_util.get_default_time_zone())
+    prices = _day(start, [5, 5, 1, 1, 6, 2, 2, 2, 9])
+    # Cheapest run of 2 hours in a row: hours 2 and 3 (not the single cheap ones).
+    assert cheapest_block(prices, 2, start) == (start + timedelta(hours=2), 1.0)
+    assert cheapest_block(prices, 3, start) == (start + timedelta(hours=5), 2.0)
+    # Runs that are over are skipped: from 04:30 on the run 2-3 can not be used.
+    since = start + timedelta(hours=4, minutes=30)
+    assert cheapest_block(prices, 2, since) == (start + timedelta(hours=5), 2.0)
+    # A run in progress still counts.
+    since = start + timedelta(hours=2, minutes=30)
+    assert cheapest_block(prices, 2, since) == (start + timedelta(hours=2), 1.0)
+    # A gap in the prices breaks a run; off or too long gives nothing.
+    gap = {h: p for h, p in prices.items() if h != start + timedelta(hours=3)}
+    assert cheapest_block(gap, 2, start) == (start + timedelta(hours=5), 2.0)
+    assert cheapest_block(prices, 0, start) is None
+    assert cheapest_block(prices, 12, start) is None
+
+
+async def test_cheapest_block_sensor(
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory
+) -> None:
+    await _prepare(hass, freezer)
+    entry = await _with_hours(hass, 0, 0, block=3)
+    data = entry.runtime_data.hours.data
+    assert data.block_start is not None
+    assert data.block_end == data.block_start + timedelta(hours=3)
+    assert data.as_dict()["block_start"] == data.block_start.isoformat()
+    state = hass.states.get("sensor.energy_price_graph_cheapest_block_start")
+    assert state.state == dt_util.as_utc(data.block_start).isoformat()
+    assert state.attributes["hours"] == 3
+    assert state.attributes["end"] == data.block_end.isoformat()
+    assert state.attributes["average_price"] is not None
+
+    # Switched off: no block, sensor unavailable.
+    hass.config_entries.async_update_entry(
+        entry, options={**entry.options, "cheapest_hours": 3, "block_hours": 0}
+    )
+    await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+    state = hass.states.get("sensor.energy_price_graph_cheapest_block_start")
+    assert state.state == "unavailable"

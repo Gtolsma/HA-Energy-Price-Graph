@@ -27,6 +27,7 @@ from homeassistant.helpers.selector import (
 import voluptuous as vol
 
 from .const import (
+    CONF_BLOCK_HOURS,
     CONF_CHEAPEST_HOURS,
     CONF_EXPENSIVE_HOURS,
     CONF_EXPORT_ENTITY,
@@ -60,6 +61,7 @@ from .const import (
     CONF_SHOW_PRICE_COLORS,
     CONF_SHOW_SAVINGS,
     CONF_SHOW_TIMING,
+    CONF_SHOW_WATER,
     CONF_TITLE,
     CONF_VIEWS,
     DEFAULT_OPTIONS,
@@ -74,6 +76,7 @@ from .const import (
     SECTION_GAS,
     SECTION_GRAPH,
     SECTION_MARKERS,
+    SECTION_WATER,
     SECTIONS,
     VIEWS,
 )
@@ -125,6 +128,7 @@ OPTIONS_SCHEMA = vol.Schema(
                     vol.Required(CONF_CHEAPEST_HOURS): HOURS,
                     vol.Required(CONF_EXPENSIVE_HOURS): HOURS,
                     vol.Required(CONF_SHOW_HOURS_CARD): BooleanSelector(),
+                    vol.Required(CONF_BLOCK_HOURS): HOURS,
                     vol.Required(CONF_HIGHLIGHT_NEGATIVE): BooleanSelector(),
                 }
             ),
@@ -174,6 +178,10 @@ OPTIONS_SCHEMA = vol.Schema(
                     vol.Required(CONF_GAS_EXPENSIVE_HOURS): HOURS,
                 }
             ),
+            {"collapsed": False},
+        ),
+        vol.Required(SECTION_WATER): section(
+            vol.Schema({vol.Required(CONF_SHOW_WATER): BooleanSelector()}),
             {"collapsed": False},
         ),
         vol.Required(SECTION_FORECAST): section(

@@ -43,6 +43,7 @@
               "cheapest_hours": "Goedkoopste uren per dag markeren",
               "expensive_hours": "Duurste uren per dag markeren",
               "show_hours_card": "Kaart met goedkope en dure uren tonen",
+              "block_hours": "Goedkoopste blok aaneengesloten uren",
               "highlight_negative": "Negatieve prijzen markeren"
             },
             "data_description": {
@@ -51,6 +52,7 @@
               "cheapest_hours": "Kleurt de N goedkoopste uren van elke dag (0 = uit), bijvoorbeeld om de wasmachine of het laden te plannen. Alleen voor dagen waarvan (bijna) alle prijzen bekend zijn, dus met een voorspelling ook vandaag en morgen.",
               "expensive_hours": "Kleurt de N duurste uren van elke dag oranje (0 = uit), bijvoorbeeld om groot verbruik te vermijden of een thuisbatterij te ontladen. Een uur is nooit tegelijk goedkoopste en duurste.",
               "show_hours_card": "Kaart boven Gemiddelde prijs op het tabblad Elektriciteit met de goedkoopste en duurste uren van vandaag als balken. Alleen zichtbaar als minstens één van de twee schuifregelaars hierboven is ingesteld.",
+              "block_hours": "Zoekt de goedkoopste reeks van N uur achter elkaar (0 = uit), bijvoorbeeld voor de wasmachine of vaatwasser. Gebruikt door de sensor Start goedkoopste blok, met begin, einde en gemiddelde prijs.",
               "highlight_negative": "Kleurt het gebied onder nul en tekent een nullijn als de prijs negatief is."
             }
           },
@@ -100,6 +102,16 @@
               "gas_views": "Tabbladen van het Energie-dashboard waarop de gasprijsgrafiek verschijnt.",
               "gas_cheapest_hours": "Kleurt de N goedkoopste uren van elke dag in de gasprijsgrafiek (0 = uit). Gasprijzen zijn vaak de hele dag gelijk, daarom staat dit standaard uit.",
               "gas_expensive_hours": "Kleurt de N duurste uren van elke dag oranje in de gasprijsgrafiek (0 = uit)."
+            }
+          },
+          "water": {
+            "name": "Water",
+            "description": "Waterkostenkaart.",
+            "data": {
+              "show_water": "Waterkosten tonen"
+            },
+            "data_description": {
+              "show_water": "Kaart op het tabblad Water met verbruik, prijs en kosten ten opzichte van de vorige periode. De prijs komt van de watermeter in je energie-instellingen."
             }
           },
           "forecast": {
@@ -225,6 +237,9 @@
       },
       "next_expensive_hours": {
         "name": "Volgende duurste uren"
+      },
+      "cheapest_block": {
+        "name": "Start goedkoopste blok"
       }
     }
   },
