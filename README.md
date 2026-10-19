@@ -1,7 +1,7 @@
 # ⚡ Energy Price Graph for Home Assistant
 
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://hacs.xyz/)
-[![Release](https://img.shields.io/github/v/release/Gtolsma/HA-Energy-Price-Graph)](https://github.com/Gtolsma/HA-Energy-Price-Graph/releases)
+[![Release](https://img.shields.io/github/v/release/Gtolsma/HA-Energy-Price-Graph?cacheSeconds=300)](https://github.com/Gtolsma/HA-Energy-Price-Graph/releases)
 [![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2025.8%2B-18BCF2.svg)](https://www.home-assistant.io/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
@@ -17,7 +17,7 @@ Show your **dynamic electricity and gas prices** directly in the **built-in Ener
 - 🔮 **Upcoming prices as a dashed line**: from the price sensor itself, a forecast sensor you choose, or the action of Nord Pool, Tibber, EnergyZero and easyEnergy
 - 🚦 **Current price chips** in the card header, coloured green / orange / red compared to today's average
 - 📍 **Markers in the graph**: the current time, the average price, the cheapest and the most expensive hours of the day and negative prices
-- ⏰ **Cheap and expensive hours**: a card with today's cheapest and most expensive hours, plus sensors to use in automations
+- ⏰ **Cheap and expensive hours**: a card with today's cheapest and most expensive hours, plus sensors to use in automations, also for the cheapest block of N hours in a row
 - 💶 **Average price card**: what you actually paid / received per kWh next to the market average, the result as an amount and your timing
 - 🔥 **Gas price graph** on the Gas tab and, optionally, the Summary tab
 - 💧 **Water costs card** on the Water tab: consumption, price and costs compared with the previous period
@@ -54,7 +54,7 @@ On the Gas tab the gas price gets its own graph below the gas consumption graph.
 
 ### ⏰ Cheap and expensive hours
 
-On the Electricity tab, above *Average price*, a card shows the cheapest and most expensive hours of the day as bars, with a line at the current time. The average price of each run of hours is shown next to its time range. **Hover over a coloured block** (or tap it) to see the price of that hour. As soon as tomorrow's prices are known, tomorrow's hours are listed below. The card follows the **date picker**: select yesterday or an earlier day and it shows that day's hours, calculated from the recorded prices. The card appears when *Highlight the cheapest / most expensive hours per day* is set in the options; the same hours are available as [sensors](#-sensors) for automations.
+On the Electricity tab, above *Average price*, a card shows the cheapest and most expensive hours of the day as bars, with a line at the current time. The average price of each run of hours is shown next to its time range. **Hover over a coloured block** (or tap it) to see the price of that hour. As soon as tomorrow's prices are known, tomorrow's hours are listed below. The card follows the **date picker**: select yesterday or an earlier day and it shows that day's hours, calculated from the recorded prices. The card appears when *Highlight the cheapest / most expensive hours per day* is set in the options; the same hours are available as [sensors](#-sensors) for automations. Need a whole stretch, for example for the washing machine? Set *Cheapest block of consecutive hours* and use the sensor *Cheapest block start*.
 
 <img src="https://raw.githubusercontent.com/Gtolsma/HA-Energy-Price-Graph/main/docs/images/hours-card.png" alt="Card with today's cheapest hours (12:00 – 15:00) as a green bar and the most expensive hours (18:00 – 21:00) as an orange bar, a line at the current time, a tooltip with the price of the hovered hour and tomorrow's hours below" width="452">
 
