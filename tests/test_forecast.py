@@ -2,6 +2,7 @@
 
 from typing import Any
 
+from freezegun.api import FrozenDateTimeFactory
 from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import entity_registry as er
@@ -153,3 +154,26 @@ async def test_websocket_command(hass: HomeAssistant, hass_ws_client) -> None:
     msg = await client.receive_json()
     assert msg["success"]
     assert msg["result"] == {"source": None, "points": []}
+
+
+async def test_empty_result_is_tried_again_soon(
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory
+) -> None:
+    """No prices (for example just after a restart) are not remembered for long."""
+    entry = MockConfigEntry(domain="nordpool", data={"areas": ["NL"]})
+    entry.add_to_hass(hass)
+    entity_id = _entity(hass, "nordpool", "NL-current_price", entry)
+
+    def handler(call: ServiceCall) -> dict[str, Any]:
+        raise ServiceValidationError("no data")
+
+    calls = _register(hass, "nordpool", "get_prices_for_date", handler)
+    assert (await async_get_forecast(hass, entity_id))["points"] == []
+    asked = len(calls)
+    # Remembered for a minute ...
+    await async_get_forecast(hass, entity_id)
+    assert len(calls) == asked
+    # ... then asked again.
+    freezer.tick(61)
+    await async_get_forecast(hass, entity_id)
+    assert len(calls) > asked

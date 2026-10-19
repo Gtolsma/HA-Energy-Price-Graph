@@ -28,6 +28,7 @@ _LOGGER = logging.getLogger(__name__)
 
 CACHE_KEY = f"{DOMAIN}_forecast_cache"
 CACHE_SECONDS = 15 * 60
+EMPTY_CACHE_SECONDS = 60
 TIMEOUT_SECONDS = 20
 
 Points = list[tuple[datetime, float]]
@@ -182,8 +183,9 @@ PROVIDERS: dict[str, Callable[[HomeAssistant, er.RegistryEntry], Awaitable[Point
 
 async def async_get_forecast(hass: HomeAssistant, entity_id: str) -> dict[str, Any]:
     """Upcoming prices for a price sensor, from its integration's action."""
+    # entity_id -> (valid until, result)
     cache: dict[str, tuple[float, dict[str, Any]]] = hass.data.setdefault(CACHE_KEY, {})
-    if (hit := cache.get(entity_id)) and time.monotonic() - hit[0] < CACHE_SECONDS:
+    if (hit := cache.get(entity_id)) and time.monotonic() < hit[0]:
         return hit[1]
 
     result: dict[str, Any] = {"source": None, "points": []}
@@ -200,5 +202,7 @@ async def async_get_forecast(hass: HomeAssistant, entity_id: str) -> dict[str, A
             "source": entry.platform,
             "points": [[ts.isoformat(), unique[ts]] for ts in sorted(unique)],
         }
-    cache[entity_id] = (time.monotonic(), result)
+    # No prices (for example just after a restart): try again soon.
+    seconds = CACHE_SECONDS if result["points"] else EMPTY_CACHE_SECONDS
+    cache[entity_id] = (time.monotonic() + seconds, result)
     return result

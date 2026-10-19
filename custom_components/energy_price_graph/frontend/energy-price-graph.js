@@ -307,6 +307,7 @@ const LABELS = {
     timingHelp: "Share of your import in the cheapest and the most expensive quarter of the hours of each day. With evenly spread use both are about 25 %.",
     hoursTitle: "Cheap and expensive hours", cheapest: "Cheapest hours", expensive: "Most expensive hours",
     tomorrow: "Tomorrow", noHours: "No prices for today yet",
+    noForecast: "The price sensor does not provide upcoming prices (yet). See Forecast in the options.",
     needPicker: "Add the Energy date picker card to this dashboard to choose the period.",
   },
   nl: {
@@ -322,6 +323,7 @@ const LABELS = {
     timingHelp: "Aandeel van je inkoop in het goedkoopste en het duurste kwart van de uren van elke dag. Bij gelijkmatig verbruik zijn beide ongeveer 25 %.",
     hoursTitle: "Goedkope en dure uren", cheapest: "Goedkoopste uren", expensive: "Duurste uren",
     tomorrow: "Morgen", noHours: "Nog geen prijzen voor vandaag",
+    noForecast: "De prijssensor geeft (nog) geen komende prijzen. Zie Forecast in de opties.",
     needPicker: "Voeg de kaart Energie-datumkiezer toe aan dit dashboard om de periode te kiezen.",
   },
   de: {
@@ -337,6 +339,7 @@ const LABELS = {
     timingHelp: "Anteil deines Bezugs im günstigsten und im teuersten Viertel der Stunden jedes Tages. Bei gleichmäßigem Verbrauch sind beide etwa 25 %.",
     hoursTitle: "Günstige und teure Stunden", cheapest: "Günstigste Stunden", expensive: "Teuerste Stunden",
     tomorrow: "Morgen", noHours: "Noch keine Preise für heute",
+    noForecast: "Der Preissensor liefert (noch) keine kommenden Preise. Siehe Forecast in den Optionen.",
     needPicker: "Füge diesem Dashboard die Karte Energie-Datumsauswahl hinzu, um den Zeitraum zu wählen.",
   },
   sv: {
@@ -352,6 +355,7 @@ const LABELS = {
     timingHelp: "Andel av din import under den billigaste och den dyraste fjärdedelen av dygnets timmar. Vid jämnt fördelad förbrukning är båda ungefär 25 %.",
     hoursTitle: "Billiga och dyra timmar", cheapest: "Billigaste timmarna", expensive: "Dyraste timmarna",
     tomorrow: "Imorgon", noHours: "Inga priser för idag än",
+    noForecast: "Prissensorn ger (ännu) inga kommande priser. Se Forecast i alternativen.",
     needPicker: "Lägg till kortet Energidatumväljare på den här instrumentpanelen för att välja period.",
   },
   da: {
@@ -367,6 +371,7 @@ const LABELS = {
     timingHelp: "Andel af din import i den billigste og den dyreste fjerdedel af døgnets timer. Ved jævnt fordelt forbrug er begge cirka 25 %.",
     hoursTitle: "Billige og dyre timer", cheapest: "Billigste timer", expensive: "Dyreste timer",
     tomorrow: "I morgen", noHours: "Ingen priser for i dag endnu",
+    noForecast: "Prissensoren giver (endnu) ingen kommende priser. Se Forecast i indstillingerne.",
     needPicker: "Tilføj kortet Energi-datovælger til dette dashboard for at vælge perioden.",
   },
   nb: {
@@ -382,6 +387,7 @@ const LABELS = {
     timingHelp: "Andel av importen din i den billigste og den dyreste fjerdedelen av døgnets timer. Ved jevnt fordelt forbruk er begge omtrent 25 %.",
     hoursTitle: "Billige og dyre timer", cheapest: "Billigste timer", expensive: "Dyreste timer",
     tomorrow: "I morgen", noHours: "Ingen priser for i dag ennå",
+    noForecast: "Prissensoren gir (ennå) ingen kommende priser. Se Forecast i innstillingene.",
     needPicker: "Legg til kortet Energi-datovelger i dette dashbordet for å velge perioden.",
   },
 };
@@ -895,7 +901,9 @@ const ACTION_FORECAST = new Map();
 function actionForecast(hass, entity, onLoad) {
   const day = localMidnight();
   let entry = ACTION_FORECAST.get(entity);
-  const fresh = entry && entry.day === day && entry.at && Date.now() - entry.at < 15 * 60000;
+  // Without prices (e.g. just after a restart) look again after a minute.
+  const maxAge = (entry?.points?.length ? 15 : 1) * 60000;
+  const fresh = entry && entry.day === day && entry.at && Date.now() - entry.at < maxAge;
   if (!entry) ACTION_FORECAST.set(entity, (entry = { points: [], waiters: new Set() }));
   if (onLoad) entry.waiters.add(onLoad);
   if (!fresh && !entry.pending && hass?.callWS) {
@@ -2041,6 +2049,7 @@ class EnergyPriceHoursCard extends (globalThis.HTMLElement ?? class {}) {
     clearInterval(this._timer);
     clearInterval(this._tick);
     clearTimeout(this._retry);
+    clearTimeout(this._again);
     this._unsub?.();
     this._unsub = undefined;
   }
@@ -2113,6 +2122,12 @@ class EnergyPriceHoursCard extends (globalThis.HTMLElement ?? class {}) {
     }
     this._render();
     this._loadPrices();
+    // No hours yet (for example just after a restart): look again after a minute.
+    const d = this._data;
+    clearTimeout(this._again);
+    if (d && (d.cheapest_count > 0 || d.expensive_count > 0) && !(d.cheapest?.length || d.expensive?.length)) {
+      this._again = setTimeout(() => this._load(), 60000);
+    }
   }
 
   /** Recorded hourly prices of the shown day, for the prices in the tooltip and for past days. */
@@ -2251,7 +2266,7 @@ class EnergyPriceHoursCard extends (globalThis.HTMLElement ?? class {}) {
           )}</div>`;
       body = anyShown
         ? `${caption}${rows.join("")}<div class="axis">${axis}</div>`
-        : `${caption}<div class="muted">${esc(L.noHours)}</div>`;
+        : `${caption}<div class="muted">${esc(isToday && d.reason && L.noForecast ? L.noForecast : L.noHours)}</div>`;
       if (tomorrow.length) {
         body += `<div class="tomorrow"><div class="muted">${esc(L.tomorrow)}</div><div class="items">${tomorrow.join("")}</div></div>`;
       }
