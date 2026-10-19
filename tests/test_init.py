@@ -82,6 +82,9 @@ async def test_setup_registers_module(
     assert options["expensive_hours"] == 0
     assert options["price_color_threshold"] == 10
     assert options["gas_views"] == ["gas"]
+    # The gas graph has its own hours, off by default (a gas price is often flat).
+    assert options["gas_cheapest_hours"] == 0
+    assert options["gas_expensive_hours"] == 0
     assert options["forecast_auto"] is True
 
     # Only one instance allowed.
@@ -148,6 +151,8 @@ async def test_options_flow_updates_options(
             export_surcharge=-0.02,
             show_gas=False,
             gas_views=[],
+            gas_cheapest_hours=2,
+            gas_expensive_hours=1,
             forecast_auto=False,
             forecast_import_entity="sensor.nordpool",
             forecast_attribute="raw_tomorrow",
@@ -181,6 +186,8 @@ async def test_options_flow_updates_options(
     assert options["import_surcharge"] == 0.12
     assert options["export_surcharge"] == -0.02
     assert options["gas_views"] == []
+    assert options["gas_cheapest_hours"] == 2
+    assert options["gas_expensive_hours"] == 1
     assert options["forecast_auto"] is False
     assert options["forecast_attribute"] == "raw_tomorrow"
     # Form sections are flattened when stored.

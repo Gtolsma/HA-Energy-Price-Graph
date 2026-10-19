@@ -91,11 +91,15 @@
             "description": "Gasprijsgrafiek.",
             "data": {
               "show_gas": "Gasprijs tonen",
-              "gas_views": "Gasprijsgrafiek tonen op tabbladen"
+              "gas_views": "Gasprijsgrafiek tonen op tabbladen",
+              "gas_cheapest_hours": "Goedkoopste uren per dag markeren",
+              "gas_expensive_hours": "Duurste uren per dag markeren"
             },
             "data_description": {
               "show_gas": "Prijsgrafiek met de gasprijssensor uit je energie-instellingen.",
-              "gas_views": "Tabbladen van het Energie-dashboard waarop de gasprijsgrafiek verschijnt."
+              "gas_views": "Tabbladen van het Energie-dashboard waarop de gasprijsgrafiek verschijnt.",
+              "gas_cheapest_hours": "Kleurt de N goedkoopste uren van elke dag in de gasprijsgrafiek (0 = uit). Gasprijzen zijn vaak de hele dag gelijk, daarom staat dit standaard uit.",
+              "gas_expensive_hours": "Kleurt de N duurste uren van elke dag oranje in de gasprijsgrafiek (0 = uit)."
             }
           },
           "forecast": {

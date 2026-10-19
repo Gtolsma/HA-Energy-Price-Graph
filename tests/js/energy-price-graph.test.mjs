@@ -6,17 +6,21 @@ import { describe, it } from "node:test";
 import {
   cheapestHourSet,
   collectionProp,
+  dayHours,
   expensiveHourSet,
   finePeriod,
   forecastPoints,
   forecastScale,
   gridStatIds,
   hourRuns,
+  hourlyPrices,
   levelFor,
   marketPeriod,
+  nextMidnight,
   paidAverage,
   runData,
   savings,
+  shownDay,
   timeWeightedMean,
   timingShares,
   withForecast,
@@ -279,6 +283,69 @@ describe("hourRuns", () => {
       [T0 + 20 * HOUR, T0 + 21 * HOUR],
     ]);
     assert.deepEqual(hourRuns([]), []);
+  });
+});
+
+describe("shownDay", () => {
+  const at = (s) => new Date(Date.parse(s));
+  const NOW = Date.parse("2026-09-28T15:00:00+02:00");
+
+  it("shows today when it is in the selected range", () => {
+    assert.equal(shownDay(at("2026-09-28T00:00:00+02:00"), at("2026-09-28T23:59:59+02:00"), NOW), T0);
+    // A week or month that includes today.
+    assert.equal(shownDay(at("2026-09-22T00:00:00+02:00"), at("2026-09-28T23:59:59+02:00"), NOW), T0);
+    assert.equal(shownDay(at("2026-09-01T00:00:00+02:00"), at("2026-09-30T23:59:59+02:00"), NOW), T0);
+    // Without an end: until now.
+    assert.equal(shownDay(at("2026-09-20T00:00:00+02:00"), undefined, NOW), T0);
+  });
+
+  it("shows the last day of a range in the past", () => {
+    assert.equal(shownDay(at("2026-09-27T00:00:00+02:00"), at("2026-09-27T23:59:59+02:00"), NOW), T0 - 24 * HOUR);
+    assert.equal(shownDay(at("2026-09-01T00:00:00+02:00"), at("2026-09-07T23:59:59+02:00"), NOW), Date.parse("2026-09-07T00:00:00+02:00"));
+  });
+
+  it("shows tomorrow when that is selected", () => {
+    assert.equal(shownDay(at("2026-09-29T00:00:00+02:00"), at("2026-09-29T23:59:59+02:00"), NOW), T0 + 24 * HOUR);
+  });
+
+  it("falls back to today without a range", () => {
+    assert.equal(shownDay(undefined, undefined, NOW), T0);
+  });
+});
+
+describe("nextMidnight", () => {
+  it("handles days of 23 and 25 hours", () => {
+    const spring = Date.parse("2026-03-29T00:00:00+01:00"); // clocks go forward
+    const autumn = Date.parse("2026-10-25T00:00:00+02:00"); // clocks go back
+    assert.equal(nextMidnight(spring) - spring, 23 * HOUR);
+    assert.equal(nextMidnight(autumn) - autumn, 25 * HOUR);
+    assert.equal(nextMidnight(T0) - T0, 24 * HOUR);
+  });
+});
+
+describe("hourlyPrices", () => {
+  it("averages quarter-hour prices per hour", () => {
+    const points = [1, 2, 3, 6].map((v, i) => [T0 + (10 * HOUR) + (i * HOUR) / 4, v]);
+    assert.deepEqual([...hourlyPrices(points)], [[T0 + 10 * HOUR, 3]]);
+  });
+
+  it("keeps hourly prices as they are", () => {
+    assert.deepEqual([...hourlyPrices(day([0.1, 0.2]))], [
+      [T0, 0.1],
+      [T0 + HOUR, 0.2],
+    ]);
+  });
+});
+
+describe("dayHours", () => {
+  it("calculates the hours of a past day from its hourly prices", () => {
+    const prices = new Map(day(Array.from({ length: 24 }, (_, i) => (i === 3 ? 0.05 : i === 19 ? 0.6 : 0.3))));
+    assert.deepEqual(dayHours(prices, 1, 1), { cheapest: [T0 + 3 * HOUR], expensive: [T0 + 19 * HOUR] });
+    assert.deepEqual(dayHours(prices, 0, 0), { cheapest: [], expensive: [] });
+  });
+
+  it("returns nothing for a day with too few hours", () => {
+    assert.deepEqual(dayHours(new Map(day([0.1, 0.2, 0.3])), 1, 1), { cheapest: [], expensive: [] });
   });
 });
 

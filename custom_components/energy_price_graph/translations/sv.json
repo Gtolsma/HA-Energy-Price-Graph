@@ -91,11 +91,15 @@
             "description": "Graf över gaspriset.",
             "data": {
               "show_gas": "Visa gaspris",
-              "gas_views": "Visa gasprisgrafen på flikar"
+              "gas_views": "Visa gasprisgrafen på flikar",
+              "gas_cheapest_hours": "Markera de billigaste timmarna per dag",
+              "gas_expensive_hours": "Markera de dyraste timmarna per dag"
             },
             "data_description": {
               "show_gas": "Prisgraf med gasprissensorn från dina energiinställningar.",
-              "gas_views": "Flikar i Energi-instrumentpanelen där gasprisgrafen visas."
+              "gas_views": "Flikar i Energi-instrumentpanelen där gasprisgrafen visas.",
+              "gas_cheapest_hours": "Färgar de N billigaste timmarna varje dag i gaspris-diagrammet (0 = av). Gaspriset är ofta detsamma hela dagen, därför är detta avstängt som standard.",
+              "gas_expensive_hours": "Färgar de N dyraste timmarna varje dag orange i gaspris-diagrammet (0 = av)."
             }
           },
           "forecast": {

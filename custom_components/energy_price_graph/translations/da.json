@@ -91,11 +91,15 @@
             "description": "Graf over gasprisen.",
             "data": {
               "show_gas": "Vis gaspris",
-              "gas_views": "Vis gasprisgrafen på faner"
+              "gas_views": "Vis gasprisgrafen på faner",
+              "gas_cheapest_hours": "Fremhæv de billigste timer pr. dag",
+              "gas_expensive_hours": "Fremhæv de dyreste timer pr. dag"
             },
             "data_description": {
               "show_gas": "Prisgraf med gasprissensoren fra dine energiindstillinger.",
-              "gas_views": "Faner i Energi-dashboardet, hvor gasprisgrafen vises."
+              "gas_views": "Faner i Energi-dashboardet, hvor gasprisgrafen vises.",
+              "gas_cheapest_hours": "Farver de N billigste timer hver dag i gasprisgrafen (0 = fra). Gasprisen er ofte den samme hele dagen, så det er slået fra som standard.",
+              "gas_expensive_hours": "Farver de N dyreste timer hver dag orange i gasprisgrafen (0 = fra)."
             }
           },
           "forecast": {
