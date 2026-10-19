@@ -58,7 +58,7 @@ With solar panels the export result is usually negative, as in this example: you
 
 ## 📋 Requirements
 
-- 🏠 Home Assistant **2025.8** or newer (tested on 2026.x); the integration icon is shown from 2026.3
+- 🏠 Home Assistant **2025.8** or newer (tested on **2026.10.2**)
 - 💰 A price sensor configured in **Settings → Dashboards → Energy → Electricity grid**:
   - *Costs*: "Use an entity with current price"
   - *Compensation* (optional): "Use an entity with current price"
@@ -181,7 +181,7 @@ The graph does not appear in the Energy dashboard's **Customize cards** dialog; 
 - **Settings → Repairs** shows a message when the graph could not be added (usually after a Home Assistant update) or when no price sensor is found. The first one disappears by itself once the graph works again.
 - **Settings → Devices & services → Energy Price Graph → ⋮ → Download diagnostics** gives a file with the options, the price sensors found in your Energy settings (names, units and attribute names, no history) and the last status of the frontend module. Please attach it to an [issue](https://github.com/Gtolsma/HA-Energy-Price-Graph/issues).
 - Open the browser console (F12) and look for lines starting with `[energy-price-graph]`:
-  - `active on electricity` / `active on overview`: the module is loaded.
+  - `active on electricity` / `active on overview` / `active on gas`: the module is loaded on that tab.
   - `no price sensor found, no price graph added`: no price entity is configured in the Energy settings and no override is set.
 
 ## 👩‍💻 Development
