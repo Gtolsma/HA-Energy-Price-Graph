@@ -91,11 +91,15 @@
             "description": "Gaspreisdiagramm.",
             "data": {
               "show_gas": "Gaspreis anzeigen",
-              "gas_views": "Gaspreisdiagramm auf Tabs anzeigen"
+              "gas_views": "Gaspreisdiagramm auf Tabs anzeigen",
+              "gas_cheapest_hours": "Günstigste Stunden pro Tag hervorheben",
+              "gas_expensive_hours": "Teuerste Stunden pro Tag hervorheben"
             },
             "data_description": {
               "show_gas": "Preisdiagramm mit dem Gaspreissensor aus deinen Energieeinstellungen.",
-              "gas_views": "Tabs des Energie-Dashboards, auf denen das Gaspreisdiagramm angezeigt wird."
+              "gas_views": "Tabs des Energie-Dashboards, auf denen das Gaspreisdiagramm angezeigt wird.",
+              "gas_cheapest_hours": "Färbt die N günstigsten Stunden jedes Tages im Gaspreisdiagramm (0 = aus). Gaspreise sind oft den ganzen Tag gleich, deshalb ist dies standardmäßig aus.",
+              "gas_expensive_hours": "Färbt die N teuersten Stunden jedes Tages im Gaspreisdiagramm orange (0 = aus)."
             }
           },
           "forecast": {

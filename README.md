@@ -53,9 +53,9 @@ On the Gas tab the gas price gets its own graph below the gas consumption graph.
 
 ### ⏰ Cheap and expensive hours
 
-On the Electricity tab, above *Average price*, a card shows today's cheapest and most expensive hours as bars, with a line at the current time. As soon as tomorrow's prices are known, tomorrow's hours are listed below. The card appears when *Highlight the cheapest / most expensive hours per day* is set in the options; the same hours are available as [sensors](#-sensors) for automations.
+On the Electricity tab, above *Average price*, a card shows the cheapest and most expensive hours of the day as bars, with a line at the current time. **Hover over a coloured block** (or tap it) to see the price of that hour. As soon as tomorrow's prices are known, tomorrow's hours are listed below. The card follows the **date picker**: select yesterday or an earlier day and it shows that day's hours, calculated from the recorded prices. The card appears when *Highlight the cheapest / most expensive hours per day* is set in the options; the same hours are available as [sensors](#-sensors) for automations.
 
-<img src="https://raw.githubusercontent.com/Gtolsma/HA-Energy-Price-Graph/main/docs/images/hours-card.png" alt="Card with today's cheapest hours (12:00 – 15:00) as a green bar and the most expensive hours (18:00 – 21:00) as an orange bar, a line at the current time and tomorrow's hours below" width="452">
+<img src="https://raw.githubusercontent.com/Gtolsma/HA-Energy-Price-Graph/main/docs/images/hours-card.png" alt="Card with today's cheapest hours (12:00 – 15:00) as a green bar and the most expensive hours (18:00 – 21:00) as an orange bar, a line at the current time, a tooltip with the price of the hovered hour and tomorrow's hours below" width="452">
 
 ### 💶 Average price
 
@@ -145,6 +145,8 @@ Go to **Settings → Devices & services → Energy Price Graph → Configure**. 
 |---|---|---|
 | Show gas price | On | Gas price graph, using the gas price sensor from your Energy settings. |
 | Show the gas price graph on tabs | Gas | On the Gas tab it is placed below the gas consumption graph; on the Summary tab below the electricity price graph. |
+| Highlight the cheapest hours per day | 0 | Shades the N cheapest hours of each day green in the gas price graph (0 = off). Separate from the electricity setting, because a gas price is often the same all day. |
+| Highlight the most expensive hours per day | 0 | Shades the N most expensive hours of each day orange in the gas price graph (0 = off). |
 
 ### 🔮 Forecast (upcoming prices)
 
@@ -223,7 +225,7 @@ Everything on the Energy dashboard is also available as a card for your own dash
 | 💶 Average price | `type: custom:energy-price-average-card` | `title` |
 | ⏰ Cheap and expensive hours | `type: custom:energy-price-hours-card` | `title` |
 
-The price graph and the average price card show the period of the **Energy date picker** card, like the built-in energy cards. Add that card to the same dashboard:
+The price graph, the average price card and the hours card show the period of the **Energy date picker** card, like the built-in energy cards. Add that card to the same dashboard:
 
 ```yaml
 type: sections
@@ -237,7 +239,7 @@ sections:
       - type: custom:energy-price-average-card
 ```
 
-The hours card always shows today (and tomorrow, once known) and needs no date picker.
+The hours card shows one day: today when it is in the selected period, otherwise the last day of the period. Without a date picker card it shows today (and tomorrow, once known).
 
 ## 🔍 How it works
 

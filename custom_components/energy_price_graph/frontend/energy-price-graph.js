@@ -54,6 +54,8 @@ const OPT = {
   exportSurcharge: 0,
   gas: params.get("gas") !== "0",
   gasViews: (params.get("gas_views") || "gas").split(","),
+  gasCheapestHours: Number(params.get("gas_cheapest")) || 0,
+  gasExpensiveHours: Number(params.get("gas_expensive")) || 0,
   gasEntity: params.get("gas_entity") || null,
   forecastAuto: params.get("forecast_auto") !== "0",
   forecastImport: params.get("forecast_import") || null,
@@ -161,6 +163,8 @@ async function loadOptions(hass) {
   OPT.exportSurcharge = num(o.export_surcharge);
   OPT.gas = o.show_gas !== false;
   OPT.gasViews = Array.isArray(o.gas_views) ? o.gas_views : ["gas"];
+  OPT.gasCheapestHours = Math.max(0, Math.round(num(o.gas_cheapest_hours)));
+  OPT.gasExpensiveHours = Math.max(0, Math.round(num(o.gas_expensive_hours)));
   OPT.gasEntity = o.gas_entity || null;
   OPT.forecastAuto = o.forecast_auto !== false;
   OPT.forecastImport = o.forecast_import_entity || null;
@@ -415,11 +419,13 @@ function averageCard({ imp, exp }, collectionKey, L) {
 const HOURS_CARD = "energy-price-hours-card";
 const GRAPH_CARD = "energy-price-graph-card";
 
-function hoursCard(L) {
+function hoursCard({ imp }, collectionKey, L) {
   const c = colors();
   return {
     type: `custom:${HOURS_CARD}`,
     title: L.hoursTitle,
+    collection_key: collectionKey,
+    import_entity: imp || null,
     labels: L,
     colors: { cheapest: c.good, expensive: c.warn },
     hide_when_off: true,
@@ -483,7 +489,7 @@ function forecastEntity(chosen, priceEntity) {
 }
 
 /** Settings shared by the electricity and gas price graphs. */
-function graphCard(title, entities, forecasts, collectionKey, L) {
+function graphCard(title, entities, forecasts, collectionKey, L, hours) {
   const fine = OPT.period === "auto_fine";
   const c = colors();
   return {
@@ -520,8 +526,8 @@ function graphCard(title, entities, forecasts, collectionKey, L) {
       color: entities[0]?.color,
       now: OPT.nowLine,
       average: OPT.averageLine,
-      cheapest: OPT.cheapestHours,
-      expensive: OPT.expensiveHours,
+      cheapest: hours.cheapest,
+      expensive: hours.expensive,
       negative: OPT.highlightNegative,
       colors: { good: c.good, warn: c.warn, bad: c.bad, muted: c.muted },
     },
@@ -545,14 +551,22 @@ function priceCard({ imp, exp }, collectionKey, L) {
     const f = forecastEntity(OPT.forecastExport, exp);
     if (f) forecasts.push({ entity: f, reference: exp, name: `${L.exp} (${L.forecast})`, color: c.export });
   }
-  return graphCard(L.title, entities, forecasts, collectionKey, L);
+  return graphCard(L.title, entities, forecasts, collectionKey, L, {
+    cheapest: OPT.cheapestHours,
+    expensive: OPT.expensiveHours,
+  });
 }
 
 function gasCard(gas, collectionKey, L) {
   const color = colors().gas;
   const f = forecastEntity(OPT.forecastGas, gas);
   const forecasts = f ? [{ entity: f, reference: gas, name: `${L.gas} (${L.forecast})`, color }] : [];
-  return graphCard(L.gasTitle, [{ entity: gas, name: L.gas, color, better: "low" }], forecasts, collectionKey, L);
+  // Own settings: a gas price is often the same all day, so the cheapest and
+  // most expensive hours are off unless asked for.
+  return graphCard(L.gasTitle, [{ entity: gas, name: L.gas, color, better: "low" }], forecasts, collectionKey, L, {
+    cheapest: OPT.gasCheapestHours,
+    expensive: OPT.gasExpensiveHours,
+  });
 }
 
 /**
@@ -656,7 +670,7 @@ async function extendView(target, view, config, hass) {
   }
   // Injected after the average card at the same place, so it ends up above it.
   if (target.key === "electricity" && OPT.showHoursCard && (OPT.cheapestHours > 0 || OPT.expensiveHours > 0)) {
-    injectAverage(view, hoursCard(L));
+    injectAverage(view, hoursCard(found, key, L));
   }
   // Summary tab: the gas graph goes first, so the electricity graph that is
   // injected next ends up above it.
@@ -1934,9 +1948,11 @@ class EnergyPriceAverageCard extends (globalThis.HTMLElement ?? class {}) {
 /* ------------------------------------------------------------------------ *
  * Cheap and expensive hours card
  *
- * Today's cheapest and most expensive hours as bars, from the integration
- * (the same hours as the binary sensors). Shown on the Energy dashboard above
- * the average price card, and available for other dashboards.
+ * The cheapest and most expensive hours of a day as bars, from the integration
+ * (the same hours as the binary sensors; past days are calculated from the
+ * recorded prices). Hovering over a block shows the price of that hour. The day
+ * follows the Energy date picker. Shown on the Energy dashboard above the
+ * average price card, and available for other dashboards.
  * ------------------------------------------------------------------------ */
 
 /** Runs of consecutive hours, from a list of hour starts (ms). */
@@ -1950,17 +1966,61 @@ function hourRuns(hours) {
   return out;
 }
 
+/** Local midnight at the end of the day that starts at `day` (23 to 25 hours later). */
+function nextMidnight(day) {
+  return localMidnight(day + 1.5 * DAY);
+}
+
+/**
+ * The day an hours card shows for the selected date range: today when it is
+ * in the range, otherwise the last day of the range.
+ */
+function shownDay(start, end, now = Date.now()) {
+  const s = start ? start.getTime() : localMidnight(now);
+  const e = end ? end.getTime() : Math.max(now, s) + 1;
+  const today = localMidnight(now);
+  if (today >= localMidnight(s) && today < e) return today;
+  return localMidnight(Math.max(s, e - 1));
+}
+
+/** Average price per hour (hour start -> price) of [timestamp, price] points. */
+function hourlyPrices(points) {
+  const w = durations(points, HOUR);
+  const sums = new Map();
+  points.forEach(([t, v], i) => {
+    const h = Math.floor(t / HOUR) * HOUR;
+    const b = sums.get(h) || { sum: 0, weight: 0 };
+    b.sum += v * w[i];
+    b.weight += w[i];
+    sums.set(h, b);
+  });
+  const out = new Map();
+  for (const [h, b] of sums) if (b.weight > 0) out.set(h, b.sum / b.weight);
+  return out;
+}
+
+/** Cheapest and most expensive hours (starts, ms) of one day from its hourly prices. */
+function dayHours(prices, cheapestCount, expensiveCount) {
+  const points = [...prices].sort((a, b) => a[0] - b[0]);
+  const cheap = extremeHourSet(points, cheapestCount);
+  const dear = extremeHourSet(points, expensiveCount, true, cheap);
+  const sorted = (set) => [...set].sort((a, b) => a - b);
+  return { cheapest: sorted(cheap), expensive: sorted(dear) };
+}
+
 class EnergyPriceHoursCard extends (globalThis.HTMLElement ?? class {}) {
   setConfig(config) {
     this._config = config || {};
     if (!this.shadowRoot) this.attachShadow({ mode: "open" });
     this._render();
+    if (this.isConnected) this._subscribe();
   }
 
   set hass(hass) {
     const first = !this._hass;
     this._hass = hass;
     if (first) this._load();
+    if (this.isConnected) this._subscribe();
   }
 
   get hass() {
@@ -1969,15 +2029,20 @@ class EnergyPriceHoursCard extends (globalThis.HTMLElement ?? class {}) {
 
   connectedCallback() {
     clearInterval(this._timer);
+    clearInterval(this._tick);
     // New prices arrive in the afternoon; the "now" line moves every minute.
     this._timer = setInterval(() => this._load(), 5 * 60000);
-    this._tick = setInterval(() => this._render(), 60000);
+    this._tick = setInterval(() => !this._hovering && this._render(), 60000);
     this._load();
+    this._subscribe();
   }
 
   disconnectedCallback() {
     clearInterval(this._timer);
     clearInterval(this._tick);
+    clearTimeout(this._retry);
+    this._unsub?.();
+    this._unsub = undefined;
   }
 
   getCardSize() {
@@ -1992,6 +2057,53 @@ class EnergyPriceHoursCard extends (globalThis.HTMLElement ?? class {}) {
     return {};
   }
 
+  /** Follow the Energy date picker (the day that is shown changes with it). */
+  _subscribe() {
+    if (this._unsub || !this._hass || !this._config) return;
+    if (!this._config.labels) {
+      // Added by hand to a dashboard: fill in the rest like on the Energy dashboard.
+      this._autoConfig();
+      return;
+    }
+    const collection = this._hass.connection?.[collectionProp(this._config.collection_key)];
+    if (!collection?.subscribe) {
+      // No date picker (yet): show today and look again for a while.
+      clearTimeout(this._retry);
+      this._waited = (this._waited || 0) + 1;
+      if (this._waited < 20) this._retry = setTimeout(() => this._subscribe(), 500);
+      return;
+    }
+    this._unsub = collection.subscribe((data) => this._select(data));
+  }
+
+  async _autoConfig() {
+    if (this._autoPending) return;
+    this._autoPending = true;
+    try {
+      const own = this._config;
+      this._config = await standaloneConfig(
+        this._hass,
+        (found, key, L) => ({ ...hoursCard(found, key, L), hide_when_off: false }),
+        own
+      );
+      this._render();
+      this._subscribe();
+      this._loadPrices();
+    } catch (e) {
+      console.warn(TAG, "could not set up the hours card", e);
+    } finally {
+      this._autoPending = false;
+    }
+  }
+
+  _select(data) {
+    const day = shownDay(data?.start, data?.end);
+    if (day === this._day) return;
+    this._day = day;
+    this._loadPrices();
+    this._render();
+  }
+
   async _load() {
     if (!this._hass) return;
     try {
@@ -2000,6 +2112,60 @@ class EnergyPriceHoursCard extends (globalThis.HTMLElement ?? class {}) {
       this._data = null;
     }
     this._render();
+    this._loadPrices();
+  }
+
+  /** Recorded hourly prices of the shown day, for the prices in the tooltip and for past days. */
+  async _loadPrices() {
+    const entity = this._config?.import_entity;
+    const day = this._day ?? localMidnight();
+    if (!entity || !this._hass?.callWS) return;
+    this._stats ??= new Map();
+    const cached = this._stats.get(day);
+    if (cached && Date.now() - cached.at < 15 * 60000) return;
+    this._stats.set(day, { at: Date.now(), prices: cached?.prices || new Map() });
+    try {
+      const res = await this._hass.callWS({
+        type: "recorder/statistics_during_period",
+        start_time: new Date(day).toISOString(),
+        end_time: new Date(nextMidnight(day)).toISOString(),
+        statistic_ids: [entity],
+        period: "hour",
+        types: ["mean"],
+      });
+      const prices = new Map();
+      for (const row of res?.[entity] || []) {
+        const t = toMs(row.start);
+        if (Number.isFinite(t) && typeof row.mean === "number") prices.set(t, row.mean);
+      }
+      this._stats.set(day, { at: Date.now(), prices });
+    } catch (e) {
+      /* no recorded prices: the tooltip then only has the time */
+    }
+    this._render();
+  }
+
+  /** Price per hour of a day: recorded, with the upcoming prices on top for today and later. */
+  _prices(day, end) {
+    const out = new Map(this._stats?.get(day)?.prices || []);
+    const entity = this._config?.import_entity;
+    if (!entity || !this._hass || day < localMidnight()) return out;
+    const source = forecastEntity(OPT.forecastImport, entity);
+    if (!source) return out;
+    const points = forecastFor(this._hass, source, () => this._render()).filter(([t]) => t >= day && t < end);
+    if (!points.length) return out;
+    const factor = forecastScale(points, Number(this._hass.states?.[entity]?.state));
+    for (const [h, v] of hourlyPrices(points)) out.set(h, v * factor);
+    return out;
+  }
+
+  /** Hours of the shown day: from the integration for today and later, calculated for past days. */
+  _hoursOf(d, day, end, prices) {
+    if (day >= localMidnight()) {
+      const of = (k) => (d?.[k] || []).map((h) => Date.parse(h)).filter((t) => Number.isFinite(t) && t >= day && t < end);
+      return { cheapest: of("cheapest"), expensive: of("expensive") };
+    }
+    return dayHours(prices, d?.cheapest_count || 0, d?.expensive_count || 0);
   }
 
   _labels() {
@@ -2026,6 +2192,11 @@ class EnergyPriceHoursCard extends (globalThis.HTMLElement ?? class {}) {
     return `${this._time(start)} – ${this._end(end)}`;
   }
 
+  _price(entity, value) {
+    const attributes = this._hass?.states?.[entity]?.attributes;
+    return formatPrice(this._hass, { state: String(value), attributes });
+  }
+
   _render() {
     if (!this.shadowRoot || !this._config) return;
     const L = this._labels();
@@ -2035,40 +2206,52 @@ class EnergyPriceHoursCard extends (globalThis.HTMLElement ?? class {}) {
     const kinds = ["cheapest", "expensive"].filter((k) => d && d[`${k}_count`] > 0);
     // On the Energy dashboard the card disappears when both sliders are 0.
     this.style.display = !kinds.length && this._config.hide_when_off && this._data !== undefined ? "none" : "";
-    const start = localMidnight();
-    const end = start + DAY;
     const now = Date.now();
-    const pos = (t) => `${(Math.min(Math.max(t, start), end) - start) / DAY * 100}%`;
-    const hoursOf = (k) => (d?.[k] || []).map((h) => Date.parse(h)).filter(Number.isFinite);
+    const today = localMidnight(now);
+    const start = this._day ?? today;
+    const end = nextMidnight(start);
+    const isToday = start === today;
+    const prices = this._prices(start, end);
+    const hours = this._hoursOf(d, start, end, prices);
+    this._shown = { start, end, prices, hours: { cheapest: new Set(hours.cheapest), expensive: new Set(hours.expensive) } };
+    const span = end - start;
+    const pos = (t) => `${((Math.min(Math.max(t, start), end) - start) / span) * 100}%`;
     let body;
     if (!d || !kinds.length) {
       body = `<div class="muted">${esc(L.noHours)}</div>`;
     } else {
       const rows = kinds.map((k) => {
-        const today = hourRuns(hoursOf(k).filter((t) => t >= start && t < end));
-        const blocks = today
+        const runs = hourRuns(hours[k]);
+        const blocks = runs
           .map((r) => `<i style="left:${pos(r[0])};width:calc(${pos(r[1])} - ${pos(r[0])});background:${esc(col[k])}"></i>`)
           .join("");
-        const spans = today.map((r) => this._span(r)).join(", ");
+        const spans = runs.map((r) => this._span(r)).join(", ");
         return `
           <div class="label"><span>${esc(L[k])}</span><span class="muted">${esc(spans)}</span></div>
-          <div class="bar">${blocks}<b style="left:${pos(now)}"></b></div>`;
+          <div class="bar" data-k="${k}">${blocks}<em class="hl"></em>${isToday ? `<b style="left:${pos(now)}"></b>` : ""}</div>`;
       });
-      const tomorrow = kinds
-        .map((k) => {
-          const runs = hourRuns(hoursOf(k).filter((t) => t >= end));
-          if (!runs.length) return "";
-          const spans = runs.map((r) => this._span(r)).join(", ");
-          return `<span><span class="dot" style="background:${esc(col[k])}"></span>${esc(spans)}</span>`;
-        })
-        .filter(Boolean);
-      const anyToday = kinds.some((k) => hoursOf(k).some((t) => t >= start && t < end));
+      const tomorrow = isToday
+        ? kinds
+            .map((k) => {
+              const runs = hourRuns((d[k] || []).map((h) => Date.parse(h)).filter((t) => t >= end));
+              if (!runs.length) return "";
+              const spans = runs.map((r) => this._span(r)).join(", ");
+              return `<span><span class="dot" style="background:${esc(col[k])}"></span>${esc(spans)}</span>`;
+            })
+            .filter(Boolean)
+        : [];
+      const anyShown = kinds.some((k) => hours[k].length);
       const axis = [0, 6, 12, 18, 24]
-        .map((h) => `<span>${esc(h === 24 ? this._end(end) : this._time(start + h * HOUR))}</span>`)
+        .map((h) => `<span>${esc(h === 24 ? this._end(end) : this._time(start + (h / 24) * span))}</span>`)
         .join("");
-      body = anyToday
-        ? `${rows.join("")}<div class="axis">${axis}</div>`
-        : `<div class="muted">${esc(L.noHours)}</div>`;
+      const caption = isToday
+        ? ""
+        : `<div class="muted day">${esc(
+            new Intl.DateTimeFormat(lang(this._hass), { weekday: "long", day: "numeric", month: "long" }).format(new Date(start))
+          )}</div>`;
+      body = anyShown
+        ? `${caption}${rows.join("")}<div class="axis">${axis}</div>`
+        : `${caption}<div class="muted">${esc(L.noHours)}</div>`;
       if (tomorrow.length) {
         body += `<div class="tomorrow"><div class="muted">${esc(L.tomorrow)}</div><div class="items">${tomorrow.join("")}</div></div>`;
       }
@@ -2080,14 +2263,17 @@ class EnergyPriceHoursCard extends (globalThis.HTMLElement ?? class {}) {
         .card-header { padding: 16px 16px 0; font-size: var(--ha-card-header-font-size, 24px);
           font-weight: var(--ha-font-weight-normal, 400); line-height: 32px;
           color: var(--ha-card-header-color, var(--primary-text-color)); }
-        .content { padding: 12px 16px 16px; }
+        .content { padding: 12px 16px 16px; position: relative; }
+        .day { margin-bottom: 6px; text-transform: capitalize; }
         .label { display: flex; justify-content: space-between; gap: 8px; margin: 4px 0 6px; }
         .label + .bar, .bar { margin-bottom: 10px; }
-        .bar { position: relative; height: 24px; border-radius: 6px; overflow: hidden;
+        .bar { position: relative; height: 24px; border-radius: 6px; overflow: hidden; touch-action: pan-y;
           background: var(--secondary-background-color, rgba(127,127,127,0.15)); }
         .bar i { position: absolute; top: 0; bottom: 0; }
         .bar b { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px;
-          background: var(--primary-text-color); }
+          background: var(--primary-text-color); pointer-events: none; }
+        .hl { position: absolute; top: 0; bottom: 0; display: none; pointer-events: none;
+          background: rgba(255,255,255,0.25); }
         .axis { display: flex; justify-content: space-between; color: var(--secondary-text-color);
           font-size: var(--ha-font-size-s, 12px); }
         .muted { color: var(--secondary-text-color); }
@@ -2096,11 +2282,62 @@ class EnergyPriceHoursCard extends (globalThis.HTMLElement ?? class {}) {
         .items { flex: 1; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
         .items > span { display: inline-flex; align-items: center; gap: 6px; }
         .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+        .tip { position: absolute; display: none; z-index: 1; pointer-events: none; white-space: nowrap;
+          padding: 6px 10px; border-radius: 8px; font-size: var(--ha-font-size-s, 12px); line-height: 16px;
+          background: var(--card-background-color, #1c1c1c); color: var(--primary-text-color);
+          border: 1px solid var(--divider-color); box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+        .tip b { font-weight: var(--ha-font-weight-medium, 500); }
       </style>
       <ha-card>
         ${title ? `<div class="card-header">${esc(title)}</div>` : ""}
-        <div class="content">${body}</div>
+        <div class="content">${body}<div class="tip"></div></div>
       </ha-card>`;
+    this._wire(col);
+  }
+
+  /** Show the price of the hour under the pointer when hovering over a coloured block. */
+  _wire(col) {
+    const root = this.shadowRoot;
+    const tip = root.querySelector(".tip");
+    const host = root.querySelector(".content");
+    const { start, end, prices, hours } = this._shown;
+    const entity = this._config?.import_entity;
+    const span = end - start;
+    root.querySelectorAll(".bar").forEach((bar) => {
+      const hl = bar.querySelector(".hl");
+      const hide = () => {
+        tip.style.display = "none";
+        hl.style.display = "none";
+        this._hovering = false;
+      };
+      const show = (ev) => {
+        const rect = bar.getBoundingClientRect();
+        if (!rect.width) return;
+        const ratio = Math.min(Math.max((ev.clientX - rect.left) / rect.width, 0), 0.9999);
+        const hour = Math.floor((start + ratio * span) / HOUR) * HOUR;
+        const kind = bar.dataset.k;
+        if (!hours[kind].has(hour)) return hide();
+        this._hovering = true;
+        hl.style.left = `${((hour - start) / span) * 100}%`;
+        hl.style.width = `${(HOUR / span) * 100}%`;
+        hl.style.display = "block";
+        const price = prices.get(hour);
+        tip.innerHTML =
+          `<span class="dot" style="display:inline-block;background:${esc(col[kind])};margin-right:6px"></span>` +
+          `<b>${esc(this._time(hour))} – ${esc(this._end(hour + HOUR))}</b>` +
+          (price == null || !entity ? "" : ` · ${esc(this._price(entity, price))}`);
+        tip.style.display = "block";
+        const box = host.getBoundingClientRect();
+        const half = tip.offsetWidth / 2;
+        const x = Math.min(Math.max(ev.clientX - box.left, half), Math.max(half, box.width - half));
+        tip.style.left = `${x - half}px`;
+        tip.style.top = `${rect.top - box.top - tip.offsetHeight - 6}px`;
+      };
+      bar.addEventListener("pointermove", show);
+      bar.addEventListener("pointerdown", show);
+      bar.addEventListener("pointerleave", hide);
+      bar.addEventListener("pointercancel", hide);
+    });
   }
 }
 
@@ -2271,6 +2508,10 @@ export {
   forecastScale,
   gridStatIds,
   hourRuns,
+  dayHours,
+  hourlyPrices,
+  nextMidnight,
+  shownDay,
   levelFor,
   marketPeriod,
   paidAverage,

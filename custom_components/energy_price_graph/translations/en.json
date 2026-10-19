@@ -91,11 +91,15 @@
             "description": "Gas price graph.",
             "data": {
               "show_gas": "Show gas price",
-              "gas_views": "Show the gas price graph on tabs"
+              "gas_views": "Show the gas price graph on tabs",
+              "gas_cheapest_hours": "Highlight the cheapest hours per day",
+              "gas_expensive_hours": "Highlight the most expensive hours per day"
             },
             "data_description": {
               "show_gas": "Price graph using the gas price sensor from your energy settings.",
-              "gas_views": "Tabs of the Energy dashboard where the gas price graph is shown."
+              "gas_views": "Tabs of the Energy dashboard where the gas price graph is shown.",
+              "gas_cheapest_hours": "Shades the N cheapest hours of each day in the gas price graph (0 = off). Gas prices are often the same all day, so this is off by default.",
+              "gas_expensive_hours": "Shades the N most expensive hours of each day orange in the gas price graph (0 = off)."
             }
           },
           "forecast": {

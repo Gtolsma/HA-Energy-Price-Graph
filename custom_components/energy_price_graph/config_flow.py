@@ -38,7 +38,9 @@ from .const import (
     CONF_FORECAST_GAS_ENTITY,
     CONF_FORECAST_IMPORT_ENTITY,
     CONF_FORECAST_VALUE_KEY,
+    CONF_GAS_CHEAPEST_HOURS,
     CONF_GAS_ENTITY,
+    CONF_GAS_EXPENSIVE_HOURS,
     CONF_GAS_VIEWS,
     CONF_HIGHLIGHT_NEGATIVE,
     CONF_IMPORT_ENTITY,
@@ -168,6 +170,8 @@ OPTIONS_SCHEMA = vol.Schema(
                     vol.Required(CONF_GAS_VIEWS): _select(
                         GAS_VIEWS, CONF_GAS_VIEWS, multiple=True
                     ),
+                    vol.Required(CONF_GAS_CHEAPEST_HOURS): HOURS,
+                    vol.Required(CONF_GAS_EXPENSIVE_HOURS): HOURS,
                 }
             ),
             {"collapsed": False},

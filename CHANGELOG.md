@@ -5,6 +5,14 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.2] - 2026-10-19
+
+### Added
+
+- Hours card: hover over (or tap) a green or orange block to see the price of that hour.
+- Hours card: follows the Energy date picker; for a past day the hours are calculated from the recorded prices.
+- Gas price graph: own settings *Highlight the cheapest / most expensive hours per day* (off by default). Before, the electricity settings were also applied to the gas graph, where a flat price made the bands meaningless.
+
 ## [1.7.1] - 2026-10-19
 
 ### Fixed

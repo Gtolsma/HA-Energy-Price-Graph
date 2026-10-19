@@ -32,6 +32,8 @@ CONF_IMPORT_SURCHARGE = "import_surcharge"
 CONF_EXPORT_SURCHARGE = "export_surcharge"
 CONF_SHOW_GAS = "show_gas"
 CONF_GAS_VIEWS = "gas_views"
+CONF_GAS_CHEAPEST_HOURS = "gas_cheapest_hours"
+CONF_GAS_EXPENSIVE_HOURS = "gas_expensive_hours"
 CONF_IMPORT_ENTITY = "import_entity"
 CONF_EXPORT_ENTITY = "export_entity"
 CONF_GAS_ENTITY = "gas_entity"
@@ -80,7 +82,12 @@ SECTIONS: dict[str, list[str]] = {
         CONF_IMPORT_SURCHARGE,
         CONF_EXPORT_SURCHARGE,
     ],
-    SECTION_GAS: [CONF_SHOW_GAS, CONF_GAS_VIEWS],
+    SECTION_GAS: [
+        CONF_SHOW_GAS,
+        CONF_GAS_VIEWS,
+        CONF_GAS_CHEAPEST_HOURS,
+        CONF_GAS_EXPENSIVE_HOURS,
+    ],
     SECTION_FORECAST: [
         CONF_FORECAST_AUTO,
         CONF_FORECAST_IMPORT_ENTITY,
@@ -126,6 +133,8 @@ DEFAULT_OPTIONS: dict = {
     CONF_EXPORT_SURCHARGE: 0,
     CONF_SHOW_GAS: True,
     CONF_GAS_VIEWS: ["gas"],
+    CONF_GAS_CHEAPEST_HOURS: 0,
+    CONF_GAS_EXPENSIVE_HOURS: 0,
     CONF_FORECAST_AUTO: True,
 }
 
