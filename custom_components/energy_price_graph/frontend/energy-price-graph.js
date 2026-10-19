@@ -895,7 +895,9 @@ const ACTION_FORECAST = new Map();
 function actionForecast(hass, entity, onLoad) {
   const day = localMidnight();
   let entry = ACTION_FORECAST.get(entity);
-  const fresh = entry && entry.day === day && entry.at && Date.now() - entry.at < 15 * 60000;
+  // Without prices (e.g. just after a restart) look again after a minute.
+  const maxAge = (entry?.points?.length ? 15 : 1) * 60000;
+  const fresh = entry && entry.day === day && entry.at && Date.now() - entry.at < maxAge;
   if (!entry) ACTION_FORECAST.set(entity, (entry = { points: [], waiters: new Set() }));
   if (onLoad) entry.waiters.add(onLoad);
   if (!fresh && !entry.pending && hass?.callWS) {
@@ -2041,6 +2043,7 @@ class EnergyPriceHoursCard extends (globalThis.HTMLElement ?? class {}) {
     clearInterval(this._timer);
     clearInterval(this._tick);
     clearTimeout(this._retry);
+    clearTimeout(this._again);
     this._unsub?.();
     this._unsub = undefined;
   }
@@ -2113,6 +2116,12 @@ class EnergyPriceHoursCard extends (globalThis.HTMLElement ?? class {}) {
     }
     this._render();
     this._loadPrices();
+    // No hours yet (for example just after a restart): look again after a minute.
+    const d = this._data;
+    clearTimeout(this._again);
+    if (d && (d.cheapest_count > 0 || d.expensive_count > 0) && !(d.cheapest?.length || d.expensive?.length)) {
+      this._again = setTimeout(() => this._load(), 60000);
+    }
   }
 
   /** Recorded hourly prices of the shown day, for the prices in the tooltip and for past days. */

@@ -15,7 +15,15 @@ from datetime import datetime, timedelta
 import logging
 from typing import TYPE_CHECKING, Any
 
-from homeassistant.core import HomeAssistant, State
+from homeassistant.core import (
+    CALLBACK_TYPE,
+    Event,
+    EventStateChangedData,
+    HomeAssistant,
+    State,
+    callback,
+)
+from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
 
@@ -38,6 +46,9 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 UPDATE_INTERVAL = timedelta(minutes=15)
+# Without hours (for example right after a restart, before the price integration
+# has its upcoming prices) look again sooner.
+RETRY_INTERVAL = timedelta(minutes=1)
 # A day counts once (almost) all of its hours are known, as in the graph.
 MIN_HOURS = 20
 
@@ -248,6 +259,34 @@ class HoursCoordinator(DataUpdateCoordinator[HoursData]):
             update_interval=UPDATE_INTERVAL,
         )
         self.options = {**DEFAULT_OPTIONS, **entry.options}
+        self._tracked: str | None = None
+        self._unsub_source: CALLBACK_TYPE | None = None
+
+    async def async_shutdown(self) -> None:
+        """Stop listening to the price sensor and stop updating."""
+        self._track(None)
+        await super().async_shutdown()
+
+    def _track(self, entity_id: str | None) -> None:
+        """Listen to the price sensor, so new upcoming prices are used at once."""
+        if entity_id == self._tracked:
+            return
+        if self._unsub_source:
+            self._unsub_source()
+            self._unsub_source = None
+        self._tracked = entity_id
+        if entity_id:
+            self._unsub_source = async_track_state_change_event(
+                self.hass, [entity_id], self._source_changed
+            )
+
+    @callback
+    def _source_changed(self, event: Event[EventStateChangedData]) -> None:
+        """Calculate again when the upcoming prices of the sensor changed."""
+        old, new = event.data["old_state"], event.data["new_state"]
+        if new is None or (old is not None and old.attributes == new.attributes):
+            return
+        self.hass.async_create_task(self.async_request_refresh())
 
     @property
     def cheapest_count(self) -> int:
@@ -287,15 +326,19 @@ class HoursCoordinator(DataUpdateCoordinator[HoursData]):
             cheapest_count=self.cheapest_count, expensive_count=self.expensive_count
         )
         if not data.cheapest_count and not data.expensive_count:
+            self._track(None)
+            self.update_interval = UPDATE_INTERVAL
             return data
         data.source = await self._source()
-        if not data.source:
-            return data
-        prices = hourly(await self._points(data.source))
-        # Only today and later: yesterday is of no use for "now" and "next".
-        today = dt_util.start_of_local_day()
-        prices = {h: p for h, p in prices.items() if h >= today}
-        data.cheapest, data.expensive = calculate(
-            prices, data.cheapest_count, data.expensive_count
-        )
+        self._track(data.source)
+        if data.source:
+            prices = hourly(await self._points(data.source))
+            # Only today and later: yesterday is of no use for "now" and "next".
+            today = dt_util.start_of_local_day()
+            prices = {h: p for h, p in prices.items() if h >= today}
+            data.cheapest, data.expensive = calculate(
+                prices, data.cheapest_count, data.expensive_count
+            )
+        found = bool(data.cheapest or data.expensive)
+        self.update_interval = UPDATE_INTERVAL if found else RETRY_INTERVAL
         return data

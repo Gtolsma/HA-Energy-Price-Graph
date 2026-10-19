@@ -263,6 +263,7 @@ async def async_setup_entry(
 
     hours = HoursCoordinator(hass, entry)
     await hours.async_refresh()
+    entry.async_on_unload(hours.async_shutdown)
 
     @callback
     def _new_hour(_now: Any) -> None:

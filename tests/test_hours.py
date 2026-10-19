@@ -9,6 +9,8 @@ from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
 from custom_components.energy_price_graph.hours import (
+    RETRY_INTERVAL,
+    UPDATE_INTERVAL,
     HoursData,
     attribute_points,
     calculate,
@@ -273,3 +275,39 @@ async def test_hours_over_websocket(hass: HomeAssistant, hass_ws_client) -> None
     assert result["expensive"] == [
         (today + timedelta(hours=h)).isoformat() for h in (19, 20)
     ]
+
+
+async def test_hours_follow_the_price_sensor(
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory
+) -> None:
+    """Right after a restart the sensor may not have its prices yet."""
+    await _prepare(hass, freezer)
+    full = hass.states.get("sensor.price")
+    # The sensor is there, but without the upcoming prices.
+    hass.states.async_set("sensor.price", "0.30", {"unit_of_measurement": "EUR/kWh"})
+    entry = await _with_hours(hass, 3, 2)
+    hours = entry.runtime_data.hours
+    entity_id = "binary_sensor.energy_price_graph_cheapest_hours_now"
+    assert hass.states.get(entity_id).state == "unavailable"
+    assert hours.update_interval == RETRY_INTERVAL
+
+    # As soon as the prices arrive, the hours are calculated, without waiting.
+    hass.states.async_set("sensor.price", "0.30", dict(full.attributes))
+    await hass.async_block_till_done()
+    assert hass.states.get(entity_id).state != "unavailable"
+    assert hours.data.cheapest
+    assert hours.update_interval == UPDATE_INTERVAL
+
+    # Other changes of the sensor (its price) do not trigger a calculation.
+    calls = 0
+    original = hours._async_update_data
+
+    async def counted():
+        nonlocal calls
+        calls += 1
+        return await original()
+
+    hours._async_update_data = counted
+    hass.states.async_set("sensor.price", "0.31", dict(full.attributes))
+    await hass.async_block_till_done()
+    assert calls == 0
