@@ -151,8 +151,6 @@ If the prices are not found, set the *attribute* and/or the *field* with the pri
 
 Card title, sensors to use instead of the ones in your Energy settings (import, export, gas) and the legend names of the import and export lines.
 
-> ℹ️ Changes apply the next time you open the Energy dashboard; no browser refresh is needed. After an update of the integration, an open browser tab reloads itself once when you open the Energy dashboard (from version 1.5.1 on).
-
 ## 🧮 Sensors
 
 The integration adds a service device *Energy Price Graph* with these sensors, updated every 15 minutes from the same statistics as the average price card:
