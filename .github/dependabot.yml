@@ -1,0 +1,29 @@
+# Dependabot opens a pull request when a newer version of a dependency is
+# available. The checks run on it like on any other pull request.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]
+
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      npm:
+        patterns: ["*"]
+
+  # pytest-homeassistant-custom-component and home-assistant-frontend must be
+  # updated together (see requirements_test.txt), so they share one group.
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      test-requirements:
+        patterns: ["*"]

@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Markers in the price graph: the most expensive hours of each day as an orange band (option *Highlight the most expensive hours per day*, off by default). An hour is never marked as both cheapest and most expensive.
 - Swedish, Danish and Norwegian translation of the setup, options, sensors, repair messages and the cards on the Energy dashboard.
 - Issue templates for bug reports and feature requests.
+- Dependabot checks once a month for newer versions of the GitHub Actions, the npm packages and the test requirements, and opens a pull request for them.
 - The release notes on GitHub are filled in from this changelog when a release is published without notes.
 - Tests for the setup and options forms.
 
