@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- README: new screenshots (price graph with upcoming prices and markers, gas price graph, average price card with result and timing), options grouped per section and a clearer layout.
+- README: new screenshots (price graph with upcoming prices and markers, gas price graph, average price card with result and timing), options grouped per section and a clearer layout. The sections about the old `www` script and about making releases are removed.
 
 ## [1.6.0] - 2026-09-28
 

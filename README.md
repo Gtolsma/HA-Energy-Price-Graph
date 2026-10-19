@@ -186,10 +186,6 @@ The graph does not appear in the Energy dashboard's **Customize cards** dialog; 
   - `active on electricity` / `active on overview`: the module is loaded.
   - `no price sensor found, no price graph added`: no price entity is configured in the Energy settings and no override is set.
 
-## 🔄 Migrating from the `www` script
-
-If you previously used `energy-price-injector.js` via `frontend: extra_module_url`, remove that entry from `configuration.yaml` and delete the file from `/config/www/`.
-
 ## 👩‍💻 Development
 
 Python (integration) and JavaScript (frontend module) each have their own tests and linter:
@@ -208,18 +204,9 @@ The same checks run on GitHub for every push, together with hassfest and the HAC
 
 The screenshots in `docs/images` are rendered with sample prices in the look of the Home Assistant dark theme.
 
-## 🏷️ Versioning and releases
+## 📝 Changelog
 
-This project uses [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`) and keeps a [CHANGELOG](CHANGELOG.md). HACS installs the zip attached to each GitHub release and offers updates when a new release is published.
-
-To release a new version:
-
-1. Bump `version` in `custom_components/energy_price_graph/manifest.json` (for example `1.0.0` → `1.1.0`).
-2. Add a section for the new version with its date at the top of `CHANGELOG.md` (for example `## [1.1.0] - 2026-10-01`).
-3. Commit and push: `git commit -am "Release 1.1.0" && git push`
-4. On GitHub, go to **Releases → Draft a new release**, create tag `1.1.0` and publish it.
-
-The release workflow checks that the tag, `manifest.json` and `CHANGELOG.md` agree, then builds `energy_price_graph.zip` and attaches it to the release.
+See the [CHANGELOG](CHANGELOG.md) for what changed in each version.
 
 ## 📄 License
 
