@@ -5,7 +5,7 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.7.0] - 2026-10-19
 
 ### Added
 
@@ -17,15 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- README: options screenshot, the orange band in the price graph screenshot and the new languages.
-
-## [1.6.1] - 2026-10-19
-
-### Changed
-
-- README: new screenshots (price graph with upcoming prices and markers, gas price graph, average price card with result and timing), options grouped per section and a clearer layout. The sections about the old `www` script and about making releases are removed, and buttons were added to open the repository in HACS and to start the setup.
-
-This is a documentation release: the integration itself is identical to 1.6.0, so updating is optional. It makes HACS show the new README.
+- README: new screenshots (price graph with upcoming prices and markers, gas price graph, average price card with result and timing, options), options grouped per section and a clearer layout, and buttons to open the repository in HACS and to start the setup. The sections about the old `www` script and about making releases are removed.
 
 ## [1.6.0] - 2026-09-28
 
