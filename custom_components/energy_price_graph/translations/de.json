@@ -41,12 +41,16 @@
               "show_now_line": "Linie zur aktuellen Uhrzeit anzeigen",
               "show_average_line": "Durchschnittspreis als Linie anzeigen",
               "cheapest_hours": "Günstigste Stunden pro Tag hervorheben",
+              "expensive_hours": "Teuerste Stunden pro Tag hervorheben",
+              "show_hours_card": "Karte mit günstigen und teuren Stunden anzeigen",
               "highlight_negative": "Negative Preise hervorheben"
             },
             "data_description": {
               "show_now_line": "Senkrechte gestrichelte Linie zur aktuellen Uhrzeit, wenn der gewählte Zeitraum jetzt enthält.",
               "show_average_line": "Waagerechte gepunktete Linie beim durchschnittlichen Bezugspreis des angezeigten Zeitraums (einschließlich kommender Preise).",
               "cheapest_hours": "Färbt die N günstigsten Stunden jedes Tages (0 = aus), zum Beispiel um Waschmaschine oder Laden zu planen. Nur für Tage, deren Preise (fast) alle bekannt sind, mit Prognose also auch heute und morgen.",
+              "expensive_hours": "Färbt die N teuersten Stunden jedes Tages orange (0 = aus), zum Beispiel um großen Verbrauch zu vermeiden oder einen Heimspeicher zu entladen. Eine Stunde ist nie zugleich günstigste und teuerste.",
+              "show_hours_card": "Karte über Durchschnittspreis im Tab Strom mit den günstigsten und teuersten Stunden von heute als Balken. Nur sichtbar, wenn mindestens einer der beiden Schieberegler oben eingestellt ist.",
               "highlight_negative": "Färbt den Bereich unter null und zeichnet eine Nulllinie, wenn der Preis negativ ist."
             }
           },
@@ -173,6 +177,14 @@
     }
   },
   "entity": {
+    "binary_sensor": {
+      "cheapest_hours": {
+        "name": "Günstigste Stunden jetzt"
+      },
+      "expensive_hours": {
+        "name": "Teuerste Stunden jetzt"
+      }
+    },
     "sensor": {
       "import_paid_today": {
         "name": "Durchschnittlicher gezahlter Bezugspreis heute"
@@ -203,6 +215,12 @@
       },
       "result_month": {
         "name": "Ergebnis ggü. Markt diesen Monat"
+      },
+      "next_cheapest_hours": {
+        "name": "Nächste günstigste Stunden"
+      },
+      "next_expensive_hours": {
+        "name": "Nächste teuerste Stunden"
       }
     }
   },

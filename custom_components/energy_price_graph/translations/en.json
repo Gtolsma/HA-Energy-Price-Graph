@@ -41,12 +41,16 @@
               "show_now_line": "Show a line at the current time",
               "show_average_line": "Show the average price as a line",
               "cheapest_hours": "Highlight the cheapest hours per day",
+              "expensive_hours": "Highlight the most expensive hours per day",
+              "show_hours_card": "Show the cheap and expensive hours card",
               "highlight_negative": "Highlight negative prices"
             },
             "data_description": {
               "show_now_line": "Vertical dashed line at the current time when the selected period includes now.",
               "show_average_line": "Horizontal dotted line at the average import price of the period shown (including upcoming prices).",
               "cheapest_hours": "Shades the N cheapest hours of each day (0 = off), for example to plan the washing machine or charging. Only for days of which (almost) all prices are known, so with a forecast also today and tomorrow.",
+              "expensive_hours": "Shades the N most expensive hours of each day orange (0 = off), for example to avoid using much power or to discharge a home battery. An hour is never marked as both cheapest and most expensive.",
+              "show_hours_card": "Card above Average price on the Electricity tab with today's cheapest and most expensive hours as bars. Only shown when at least one of the two sliders above is set.",
               "highlight_negative": "Shades the area below zero and draws a zero line when the price is negative."
             }
           },
@@ -173,6 +177,14 @@
     }
   },
   "entity": {
+    "binary_sensor": {
+      "cheapest_hours": {
+        "name": "Cheapest hours now"
+      },
+      "expensive_hours": {
+        "name": "Most expensive hours now"
+      }
+    },
     "sensor": {
       "import_paid_today": {
         "name": "Average import price paid today"
@@ -203,6 +215,12 @@
       },
       "result_month": {
         "name": "Result vs market this month"
+      },
+      "next_cheapest_hours": {
+        "name": "Next cheapest hours"
+      },
+      "next_expensive_hours": {
+        "name": "Next most expensive hours"
       }
     }
   },

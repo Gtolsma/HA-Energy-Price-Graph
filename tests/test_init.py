@@ -79,6 +79,7 @@ async def test_setup_registers_module(
     assert options["show_average"] is True
     assert options["show_now_line"] is True
     assert options["cheapest_hours"] == 0
+    assert options["expensive_hours"] == 0
     assert options["price_color_threshold"] == 10
     assert options["gas_views"] == ["gas"]
     assert options["forecast_auto"] is True
@@ -135,6 +136,7 @@ async def test_options_flow_updates_options(
             show_now_line=False,
             show_average_line=True,
             cheapest_hours=3,
+            expensive_hours=2,
             highlight_negative=False,
             show_current=False,
             show_price_colors=False,
@@ -172,6 +174,7 @@ async def test_options_flow_updates_options(
     assert options["show_now_line"] is False
     assert options["show_average_line"] is True
     assert options["cheapest_hours"] == 3
+    assert options["expensive_hours"] == 2
     assert options["highlight_negative"] is False
     assert options["price_color_threshold"] == 15
     assert options["show_timing"] is False

@@ -55,5 +55,8 @@ async def async_get_config_entry_diagnostics(
             entity_id: {"source": r["source"], "points": len(r["points"])}
             for entity_id, (_, r) in forecast_cache.items()
         },
+        "hours": entry.runtime_data.hours.data.as_dict()
+        if entry.runtime_data.hours.data
+        else None,
         "frontend_reports": frontend_reports(hass),
     }

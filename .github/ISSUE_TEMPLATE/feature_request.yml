@@ -1,0 +1,21 @@
+name: 💡 Feature request
+description: An idea to make Energy Price Graph better
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like?
+      description: Describe the feature. A sketch or screenshot is welcome.
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: What would you use it for?
+      description: The situation or problem behind the idea helps to find the best solution.
+  - type: input
+    id: source
+    attributes:
+      label: Price integration
+      description: Where do your prices come from? (for example Nord Pool, Tibber, a fixed price)

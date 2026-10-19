@@ -35,3 +35,22 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release upload "$GITHUB_REF_NAME" energy_price_graph.zip --clobber
+
+      - name: Release notes from the changelog
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          # The section of this version: from its heading up to the next one.
+          awk -v tag="$TAG" '
+            $0 ~ "^## \\[" tag "\\]" { found = 1; next }
+            found && /^## \[/ { exit }
+            found { print }
+          ' CHANGELOG.md | sed -e '/./,$!d' > notes.md
+          # Keep notes that were written by hand when publishing the release.
+          BODY=$(gh release view "$GITHUB_REF_NAME" --json body -q .body)
+          if [ -n "$(echo "$BODY" | tr -d '[:space:]')" ]; then
+            echo "Release already has notes, leaving them as they are."
+          elif [ -s notes.md ]; then
+            gh release edit "$GITHUB_REF_NAME" --notes-file notes.md
+          fi

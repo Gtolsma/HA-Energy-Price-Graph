@@ -15,7 +15,6 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
@@ -25,6 +24,8 @@ from homeassistant.util import dt as dt_util
 
 from .calc import Paid, market_price, mean, paid_average, result
 from .const import CONF_EXPORT_SURCHARGE, CONF_IMPORT_SURCHARGE, DEFAULT_OPTIONS, DOMAIN
+from .entity import device_info
+from .hours import HoursCoordinator
 from .prefs import EnergySetup, async_energy_setup
 
 if TYPE_CHECKING:
@@ -150,6 +151,10 @@ async def async_setup_entry(
         for period in PERIODS
         for key in KEYS
     )
+    async_add_entities(
+        NextHoursSensor(entry.runtime_data.hours, entry, kind)
+        for kind in ("cheapest", "expensive")
+    )
 
 
 class PriceStatSensor(CoordinatorEntity[PriceStatsCoordinator], SensorEntity):
@@ -170,11 +175,7 @@ class PriceStatSensor(CoordinatorEntity[PriceStatsCoordinator], SensorEntity):
         self._period = period
         self._attr_translation_key = f"{key}_{period}"
         self._attr_unique_id = f"{entry.entry_id}_{key}_{period}"
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, entry.entry_id)},
-            name="Energy Price Graph",
-            entry_type=DeviceEntryType.SERVICE,
-        )
+        self._attr_device_info = device_info(entry)
         currency = coordinator.hass.config.currency
         if key == "result":
             self._attr_device_class = SensorDeviceClass.MONETARY
@@ -204,3 +205,35 @@ class PriceStatSensor(CoordinatorEntity[PriceStatsCoordinator], SensorEntity):
         if self._key != "result":
             return None
         return PERIODS[self._period]()
+
+
+class NextHoursSensor(CoordinatorEntity[HoursCoordinator], SensorEntity):
+    """When the next cheapest (or most expensive) hours start."""
+
+    _attr_has_entity_name = True
+    _attr_device_class = SensorDeviceClass.TIMESTAMP
+
+    def __init__(
+        self,
+        coordinator: HoursCoordinator,
+        entry: EnergyPriceGraphConfigEntry,
+        kind: str,
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator)
+        self._kind = kind
+        self._attr_translation_key = f"next_{kind}_hours"
+        self._attr_unique_id = f"{entry.entry_id}_next_{kind}_hours"
+        self._attr_device_info = device_info(entry)
+
+    @property
+    def available(self) -> bool:
+        """Unavailable when switched off in the options or without prices."""
+        data = self.coordinator.data
+        return super().available and data is not None and bool(data.hours(self._kind))
+
+    @property
+    def native_value(self) -> datetime | None:
+        """Start of the next run of hours; unknown until tomorrow is known."""
+        data = self.coordinator.data
+        return data.next_start(self._kind) if data else None

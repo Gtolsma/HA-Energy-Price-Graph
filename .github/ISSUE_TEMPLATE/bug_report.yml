@@ -1,0 +1,68 @@
+name: 🐞 Bug report
+description: Something does not work as expected
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! The more you fill in, the faster it can be fixed.
+        Please check **Settings → Repairs** first: Energy Price Graph shows a message there when a Home Assistant update broke the graph.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happens?
+      description: What did you expect, and what happened instead? Screenshots help a lot.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: How can it be reproduced?
+      placeholder: |
+        1. Open the Energy dashboard
+        2. Select yesterday in the date picker
+        3. ...
+  - type: input
+    id: version
+    attributes:
+      label: Energy Price Graph version
+      placeholder: "1.6.1"
+    validations:
+      required: true
+  - type: input
+    id: ha_version
+    attributes:
+      label: Home Assistant version
+      description: Settings → About
+      placeholder: "2026.10.2"
+    validations:
+      required: true
+  - type: dropdown
+    id: source
+    attributes:
+      label: Price integration
+      description: Where do your prices come from?
+      multiple: true
+      options:
+        - Nord Pool
+        - ENTSO-e
+        - Tibber
+        - EnergyZero
+        - easyEnergy
+        - Zonneplan
+        - Frank Energie
+        - Fixed price
+        - Other
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics
+      description: |
+        **Settings → Devices & services → Energy Price Graph → ⋮ → Download diagnostics**, then drag the file here.
+        It contains the options and the names and units of your price sensors, no history.
+  - type: textarea
+    id: console
+    attributes:
+      label: Browser console
+      description: Press F12, open the Console tab and copy the lines that start with `[energy-price-graph]`.
+      render: text

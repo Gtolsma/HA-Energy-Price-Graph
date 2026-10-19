@@ -41,12 +41,16 @@
               "show_now_line": "Lijn op het huidige tijdstip tonen",
               "show_average_line": "Gemiddelde prijs als lijn tonen",
               "cheapest_hours": "Goedkoopste uren per dag markeren",
+              "expensive_hours": "Duurste uren per dag markeren",
+              "show_hours_card": "Kaart met goedkope en dure uren tonen",
               "highlight_negative": "Negatieve prijzen markeren"
             },
             "data_description": {
               "show_now_line": "Verticale stippellijn op het huidige tijdstip als de gekozen periode nu bevat.",
               "show_average_line": "Horizontale stippellijn op de gemiddelde inkoopprijs van de getoonde periode (inclusief komende prijzen).",
               "cheapest_hours": "Kleurt de N goedkoopste uren van elke dag (0 = uit), bijvoorbeeld om de wasmachine of het laden te plannen. Alleen voor dagen waarvan (bijna) alle prijzen bekend zijn, dus met een voorspelling ook vandaag en morgen.",
+              "expensive_hours": "Kleurt de N duurste uren van elke dag oranje (0 = uit), bijvoorbeeld om groot verbruik te vermijden of een thuisbatterij te ontladen. Een uur is nooit tegelijk goedkoopste en duurste.",
+              "show_hours_card": "Kaart boven Gemiddelde prijs op het tabblad Elektriciteit met de goedkoopste en duurste uren van vandaag als balken. Alleen zichtbaar als minstens één van de twee schuifregelaars hierboven is ingesteld.",
               "highlight_negative": "Kleurt het gebied onder nul en tekent een nullijn als de prijs negatief is."
             }
           },
@@ -173,6 +177,14 @@
     }
   },
   "entity": {
+    "binary_sensor": {
+      "cheapest_hours": {
+        "name": "Goedkoopste uren nu"
+      },
+      "expensive_hours": {
+        "name": "Duurste uren nu"
+      }
+    },
     "sensor": {
       "import_paid_today": {
         "name": "Gemiddelde inkoopprijs betaald vandaag"
@@ -203,6 +215,12 @@
       },
       "result_month": {
         "name": "Resultaat t.o.v. markt deze maand"
+      },
+      "next_cheapest_hours": {
+        "name": "Volgende goedkoopste uren"
+      },
+      "next_expensive_hours": {
+        "name": "Volgende duurste uren"
       }
     }
   },

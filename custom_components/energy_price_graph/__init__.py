@@ -22,6 +22,7 @@ from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.const import Platform, __version__ as HA_VERSION
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import config_validation as cv, issue_registry as ir
+from homeassistant.helpers.event import async_track_time_change
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.loader import async_get_integration
 import voluptuous as vol
@@ -36,11 +37,12 @@ from .const import (
     URL_BASE,
 )
 from .forecast import async_get_forecast
+from .hours import HoursCoordinator
 from .prefs import async_energy_setup
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS = [Platform.SENSOR]
+PLATFORMS = [Platform.BINARY_SENSOR, Platform.SENSOR]
 
 
 @dataclass
@@ -48,6 +50,7 @@ class RuntimeData:
     """Data of a loaded entry."""
 
     loader_url: str
+    hours: HoursCoordinator
 
 
 type EnergyPriceGraphConfigEntry = ConfigEntry[RuntimeData]
@@ -61,6 +64,7 @@ _ENERGY_LISTENER = f"{DOMAIN}_energy_listener"
 WS_TYPE_OPTIONS = f"{DOMAIN}/options"
 WS_TYPE_REPORT = f"{DOMAIN}/report"
 WS_TYPE_FORECAST = f"{DOMAIN}/forecast"
+WS_TYPE_HOURS = f"{DOMAIN}/hours"
 
 # The frontend loads this small loader on every page load. Its URL never
 # changes and it is never cached, so the browser always gets a loader that
@@ -171,6 +175,19 @@ async def ws_forecast(
     connection.send_result(msg["id"], await async_get_forecast(hass, msg["entity_id"]))
 
 
+@websocket_api.websocket_command({vol.Required("type"): WS_TYPE_HOURS})
+@callback
+def ws_hours(
+    hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict
+) -> None:
+    """Send the cheapest and most expensive hours (for the hours card)."""
+    for entry in hass.config_entries.async_entries(DOMAIN):
+        if entry.state is ConfigEntryState.LOADED and entry.runtime_data.hours.data:
+            connection.send_result(msg["id"], entry.runtime_data.hours.data.as_dict())
+            return
+    connection.send_result(msg["id"], None)
+
+
 def frontend_reports(hass: HomeAssistant) -> dict[str, Any]:
     """Last report per status from the frontend module (for diagnostics)."""
     return dict(hass.data.get(_REPORTS) or {})
@@ -208,6 +225,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     websocket_api.async_register_command(hass, ws_options)
     websocket_api.async_register_command(hass, ws_report)
     websocket_api.async_register_command(hass, ws_forecast)
+    websocket_api.async_register_command(hass, ws_hours)
     hass.http.register_view(LoaderView(hass))
     return True
 
@@ -243,8 +261,18 @@ async def async_setup_entry(
         )
         hass.data[_STATIC_REGISTERED] = True
 
+    hours = HoursCoordinator(hass, entry)
+    await hours.async_refresh()
+
+    @callback
+    def _new_hour(_now: Any) -> None:
+        # The binary sensors change at the start of each hour, between updates.
+        hours.async_update_listeners()
+
+    entry.async_on_unload(async_track_time_change(hass, _new_hour, minute=0, second=0))
+
     add_extra_js_url(hass, LOADER_URL)
-    entry.runtime_data = RuntimeData(loader_url=LOADER_URL)
+    entry.runtime_data = RuntimeData(loader_url=LOADER_URL, hours=hours)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     await _async_listen_energy(hass)
     await async_check_price_sensor(hass, {**DEFAULT_OPTIONS, **entry.options})

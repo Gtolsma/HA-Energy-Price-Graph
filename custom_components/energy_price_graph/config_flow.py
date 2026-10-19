@@ -28,6 +28,7 @@ import voluptuous as vol
 
 from .const import (
     CONF_CHEAPEST_HOURS,
+    CONF_EXPENSIVE_HOURS,
     CONF_EXPORT_ENTITY,
     CONF_EXPORT_NAME,
     CONF_EXPORT_SURCHARGE,
@@ -52,6 +53,7 @@ from .const import (
     CONF_SHOW_CURRENT,
     CONF_SHOW_EXPORT,
     CONF_SHOW_GAS,
+    CONF_SHOW_HOURS_CARD,
     CONF_SHOW_NOW_LINE,
     CONF_SHOW_PRICE_COLORS,
     CONF_SHOW_SAVINGS,
@@ -75,6 +77,12 @@ from .const import (
 )
 
 SENSOR = EntitySelector(EntitySelectorConfig(domain="sensor"))
+HOURS = vol.All(
+    NumberSelector(
+        NumberSelectorConfig(min=0, max=12, step=1, mode=NumberSelectorMode.SLIDER)
+    ),
+    vol.Coerce(int),
+)
 SURCHARGE = NumberSelector(
     NumberSelectorConfig(min=-10, max=10, step="any", mode=NumberSelectorMode.BOX)
 )
@@ -112,14 +120,9 @@ OPTIONS_SCHEMA = vol.Schema(
                 {
                     vol.Required(CONF_SHOW_NOW_LINE): BooleanSelector(),
                     vol.Required(CONF_SHOW_AVERAGE_LINE): BooleanSelector(),
-                    vol.Required(CONF_CHEAPEST_HOURS): vol.All(
-                        NumberSelector(
-                            NumberSelectorConfig(
-                                min=0, max=12, step=1, mode=NumberSelectorMode.SLIDER
-                            )
-                        ),
-                        vol.Coerce(int),
-                    ),
+                    vol.Required(CONF_CHEAPEST_HOURS): HOURS,
+                    vol.Required(CONF_EXPENSIVE_HOURS): HOURS,
+                    vol.Required(CONF_SHOW_HOURS_CARD): BooleanSelector(),
                     vol.Required(CONF_HIGHLIGHT_NEGATIVE): BooleanSelector(),
                 }
             ),
