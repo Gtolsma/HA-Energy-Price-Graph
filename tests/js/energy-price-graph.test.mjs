@@ -5,6 +5,7 @@ import { describe, it } from "node:test";
 
 import {
   cheapestHourSet,
+  expensiveHourSet,
   finePeriod,
   forecastPoints,
   forecastScale,
@@ -246,6 +247,27 @@ describe("cheapestHourSet", () => {
   });
 });
 
+describe("expensiveHourSet", () => {
+  it("picks the most expensive hours of a complete day", () => {
+    const prices = Array.from({ length: 24 }, (_, i) => (i === 8 ? 0.5 : i === 19 ? 0.6 : 0.3));
+    const set = expensiveHourSet(day(prices), 2);
+    assert.deepEqual([...set].sort((a, b) => a - b), [T0 + 8 * HOUR, T0 + 19 * HOUR]);
+  });
+
+  it("never takes an hour that is already among the cheapest", () => {
+    // Only two distinct prices: with 12 + 13 hours the sets would overlap.
+    const prices = Array.from({ length: 24 }, (_, i) => (i < 12 ? 0.1 : 0.2));
+    const cheap = cheapestHourSet(day(prices), 12);
+    const expensive = expensiveHourSet(day(prices), 13, cheap);
+    assert.equal(expensive.size, 12);
+    assert.ok([...expensive].every((h) => !cheap.has(h)));
+  });
+
+  it("skips days that are not (almost) complete", () => {
+    assert.equal(expensiveHourSet(day([0.1, 0.2, 0.3]), 1).size, 0);
+  });
+});
+
 describe("runData", () => {
   it("ends each run at the next point", () => {
     const points = day([1, 2, 3, 4]);
@@ -274,6 +296,17 @@ describe("withOverlays", () => {
     assert.deepEqual(cheapest.data.map(([t]) => t), [T0, T0 + HOUR, T0 + 2 * HOUR, T0 + 3 * HOUR, T0 + 3 * HOUR]);
     assert.ok(cheapest.data.slice(0, 4).every(([, v]) => Math.abs(v - 0.43) < 1e-9));
     assert.equal(cheapest.data[4][1], null);
+  });
+
+  it("adds the most expensive hours as a separate band", () => {
+    const prices = Array.from({ length: 24 }, (_, i) => 0.2 + i / 100);
+    const ov = { reference: "sensor.price", now: false, average: false, cheapest: 2, expensive: 2, negative: true, colors };
+    const out = withOverlays(series(prices), ov, "stepped");
+    assert.deepEqual(ids(out).sort(), ["epg-overlay-cheapest", "epg-overlay-expensive"]);
+    const expensive = out.find((s) => s.id === "epg-overlay-expensive");
+    // 22:00-24:00, up to the top of the graph.
+    assert.deepEqual(expensive.data.map(([t]) => t), [T0 + 22 * HOUR, T0 + 23 * HOUR, T0 + 24 * HOUR, T0 + 24 * HOUR]);
+    assert.ok(expensive.data.slice(0, 3).every(([, v]) => Math.abs(v - 0.43) < 1e-9));
   });
 
   it("highlights negative prices with a zero line", () => {

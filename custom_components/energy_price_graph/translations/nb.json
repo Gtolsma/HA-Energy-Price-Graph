@@ -1,0 +1,221 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Energy Price Graph",
+        "description": "Legger til en graf med den dynamiske strømprisen i det innebygde Energi-dashbordet. Prissensorene leses fra energiinnstillingene dine (Strømnett → kostnader / kompensasjon). Du kan endre alternativene etterpå via Konfigurer. Oppdater nettleseren én gang etter oppsettet."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Energy Price Graph er allerede satt opp."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Alternativer for Energy Price Graph",
+        "description": "Endringer gjelder neste gang du åpner Energi-dashbordet.",
+        "sections": {
+          "graph": {
+            "name": "Prisgraf",
+            "description": "Hvordan prisgrafen ser ut og på hvilke faner den vises.",
+            "data": {
+              "period": "Oppløsning",
+              "line_style": "Linjestil",
+              "views": "Vis prisgrafen på faner",
+              "show_export": "Vis eksportpris",
+              "minmax": "Vis min/maks per periode"
+            },
+            "data_description": {
+              "period": "Auto (fin) viser hvert pristrinn (5-minuttersdata, så kvartersprisene endres nøyaktig kl. :00, :15, :30 og :45) for perioder opptil en uke innenfor recorder-historikken, og time- eller døgngjennomsnitt for lengre perioder. Auto bruker timegjennomsnitt for et døgn. 5-minuttersdata lagres så lenge recorderen lagrer historikk (purge_keep_days, standard 10 dager).",
+              "line_style": "Rett forbinder punktene direkte. Trinn viser den nøyaktige prisen per periode. Myk tegner en avrundet kurve.",
+              "views": "Faner i Energi-dashbordet der strømprisgrafen vises.",
+              "show_export": "Legger til en ekstra linje når eksportprisen er en annen sensor enn importprisen.",
+              "minmax": "Tegner også den laveste og høyeste prisen innenfor hver periode."
+            }
+          },
+          "markers": {
+            "name": "Markeringer i grafen",
+            "description": "Ekstra linjer og fremhevede områder i prisgrafen.",
+            "data": {
+              "show_now_line": "Vis en linje ved nåværende tidspunkt",
+              "show_average_line": "Vis gjennomsnittsprisen som en linje",
+              "cheapest_hours": "Fremhev de billigste timene per dag",
+              "expensive_hours": "Fremhev de dyreste timene per dag",
+              "highlight_negative": "Fremhev negative priser"
+            },
+            "data_description": {
+              "show_now_line": "Loddrett stiplet linje ved nåværende tidspunkt når den valgte perioden inkluderer nå.",
+              "show_average_line": "Vannrett prikket linje ved gjennomsnittlig importpris for den viste perioden (inkludert kommende priser).",
+              "cheapest_hours": "Farger døgnets N billigste timer (0 = av), for eksempel for å planlegge vaskemaskinen eller lading. Bare for dager der (nesten) alle prisene er kjent, med prognose altså også i dag og i morgen.",
+              "expensive_hours": "Farger døgnets N dyreste timer oransje (0 = av), for eksempel for å unngå stort forbruk eller for å lade ut et hjemmebatteri. En time markeres aldri som både billigst og dyrest.",
+              "highlight_negative": "Farger området under null og tegner en nullinje når prisen er negativ."
+            }
+          },
+          "current": {
+            "name": "Nåværende pris",
+            "description": "Merker med nåværende pris i grafens overskrift.",
+            "data": {
+              "show_current": "Vis nåværende pris",
+              "show_price_colors": "Fargelegg nåværende pris",
+              "price_color_threshold": "Margin rundt gjennomsnittet"
+            },
+            "data_description": {
+              "show_current": "Små merker i kortets overskrift med nåværende pris.",
+              "show_price_colors": "Grønn når nåværende pris er gunstig sammenlignet med dagens gjennomsnittspris (hele dagen når en prognose finnes, ellers prisene så langt i dag) (lav for import og gass, høy for eksport), oransje rundt gjennomsnittet, rød når den er ugunstig.",
+              "price_color_threshold": "Hvor mye prisen kan avvike fra dagens gjennomsnitt og fortsatt regnes som gjennomsnittlig (oransje). Måles mot gjennomsnittsprisen eller, når prisene er nær null, mot halvparten av dagens prisspenn."
+            }
+          },
+          "average": {
+            "name": "Gjennomsnittspris",
+            "description": "Kort under Energifordeling på fanen Strøm.",
+            "data": {
+              "show_average": "Vis gjennomsnittspris",
+              "show_savings": "Vis resultatet som beløp",
+              "show_timing": "Vis timing",
+              "import_surcharge": "Påslag på markedets importpris (per kWh)",
+              "export_surcharge": "Påslag på markedets eksportpris (per kWh)"
+            },
+            "data_description": {
+              "show_average": "Kort under Energifordeling på fanen Strøm med din gjennomsnittlige import- og eksportpris for den valgte perioden, ved siden av gjennomsnittlig markedspris.",
+              "show_savings": "Viser hvor mye bedre eller dårligere du gjorde det enn markedsgjennomsnittet, i din valuta, for import og eksport hver for seg og totalt.",
+              "show_timing": "Andel av importen din i den billigste og den dyreste fjerdedelen av døgnets timer (for perioder opptil 35 dager). Ved jevnt fordelt forbruk er begge omtrent 25 %.",
+              "import_surcharge": "Legges til gjennomsnittet av importprissensoren, for eksempel elavgift og strømleverandørens påslag, når kostnadene dine inkluderer dem, men prissensoren ikke gjør det. 0 = ingen.",
+              "export_surcharge": "Legges til gjennomsnittet av eksportprissensoren (kan være negativt, for eksempel et gebyr for innmating). 0 = ingen."
+            }
+          },
+          "gas": {
+            "name": "Gass",
+            "description": "Graf over gassprisen.",
+            "data": {
+              "show_gas": "Vis gasspris",
+              "gas_views": "Vis gassprisgrafen på faner"
+            },
+            "data_description": {
+              "show_gas": "Prisgraf med gassprissensoren fra energiinnstillingene dine.",
+              "gas_views": "Faner i Energi-dashbordet der gassprisgrafen vises."
+            }
+          },
+          "forecast": {
+            "name": "Prognose (kommende priser)",
+            "description": "Kommende priser tegnes som en stiplet linje; velg i morgen i datovelgeren for å se i morgen. De leses fra attributtene til en sensor (for eksempel Nord Pool, ENTSO-e, Zonneplan eller Frank Energie) eller, for Nord Pool, Tibber, EnergyZero og easyEnergy i Home Assistant, fra integrasjonens handling.",
+            "data": {
+              "forecast_auto": "Bruk selve prissensoren",
+              "forecast_import_entity": "Prognose for importpris",
+              "forecast_export_entity": "Prognose for eksportpris",
+              "forecast_gas_entity": "Prognose for gasspris",
+              "forecast_attribute": "Attributt med kommende priser",
+              "forecast_value_key": "Felt med prisen"
+            },
+            "data_description": {
+              "forecast_auto": "Når ingen prognosesensor er valgt nedenfor, letes det etter kommende priser på selve prissensoren (attributter eller integrasjonens handling).",
+              "forecast_import_entity": "La stå tomt for å bruke selve prissensoren (se ovenfor) eller for ingen prognoselinje.",
+              "forecast_export_entity": "La stå tomt for å bruke selve prissensoren (se ovenfor) eller for ingen prognoselinje.",
+              "forecast_gas_entity": "La stå tomt for å bruke selve prissensoren (se ovenfor) eller for ingen prognoselinje.",
+              "forecast_attribute": "Les bare dette attributtet, for eksempel raw_tomorrow eller prices. La stå tomt for å søke i alle attributter.",
+              "forecast_value_key": "Navnet på feltet med prisen i hvert element, for eksempel value eller price_incl_vat. La stå tomt for å finne det automatisk."
+            }
+          },
+          "advanced": {
+            "name": "Avansert",
+            "description": "Overstyringer for sensorer, tittel og navn.",
+            "data": {
+              "title": "Kortets tittel",
+              "import_entity": "Importprissensor (overstyring)",
+              "export_entity": "Eksportprissensor (overstyring)",
+              "gas_entity": "Gassprissensor (overstyring)",
+              "import_name": "Navn på importlinjen",
+              "export_name": "Navn på eksportlinjen"
+            },
+            "data_description": {
+              "title": "La stå tomt for standardtittelen.",
+              "import_entity": "La stå tomt for å bruke sensoren fra energiinnstillingene dine.",
+              "export_entity": "La stå tomt for å bruke sensoren fra energiinnstillingene dine.",
+              "gas_entity": "La stå tomt for å bruke sensoren fra energiinnstillingene dine.",
+              "import_name": "La stå tomt for standardnavnet.",
+              "export_name": "La stå tomt for standardnavnet."
+            }
+          }
+        }
+      }
+    },
+    "error": {
+      "no_views": "Velg minst én fane.",
+      "no_gas_views": "Velg minst én fane for gassprisgrafen, eller slå av gassprisen."
+    }
+  },
+  "selector": {
+    "period": {
+      "options": {
+        "auto_fine": "Auto (fin)",
+        "auto": "Auto",
+        "5minute": "5 minutter",
+        "hour": "Time",
+        "day": "Dag"
+      }
+    },
+    "views": {
+      "options": {
+        "electricity": "Strøm",
+        "overview": "Sammendrag"
+      }
+    },
+    "gas_views": {
+      "options": {
+        "gas": "Gass",
+        "overview": "Sammendrag"
+      }
+    },
+    "line_style": {
+      "options": {
+        "straight": "Rett",
+        "stepped": "Trinn (nøyaktig)",
+        "smooth": "Myk"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "import_paid_today": {
+        "name": "Gjennomsnittlig betalt importpris i dag"
+      },
+      "import_market_today": {
+        "name": "Gjennomsnittlig markedspris for import i dag"
+      },
+      "export_paid_today": {
+        "name": "Gjennomsnittlig mottatt eksportpris i dag"
+      },
+      "export_market_today": {
+        "name": "Gjennomsnittlig markedspris for eksport i dag"
+      },
+      "result_today": {
+        "name": "Resultat sammenlignet med markedet i dag"
+      },
+      "import_paid_month": {
+        "name": "Gjennomsnittlig betalt importpris denne måneden"
+      },
+      "import_market_month": {
+        "name": "Gjennomsnittlig markedspris for import denne måneden"
+      },
+      "export_paid_month": {
+        "name": "Gjennomsnittlig mottatt eksportpris denne måneden"
+      },
+      "export_market_month": {
+        "name": "Gjennomsnittlig markedspris for eksport denne måneden"
+      },
+      "result_month": {
+        "name": "Resultat sammenlignet med markedet denne måneden"
+      }
+    }
+  },
+  "issues": {
+    "frontend_not_active": {
+      "title": "Prisgrafen kunne ikke legges til i Energi-dashbordet",
+      "description": "Energy Price Graph kunne ikke utvide Energi-dashbordet i nettleseren din. Dette skjer som regel etter en oppdatering av Home Assistant (nå {ha_version}) som har endret den interne frontend-koden integrasjonen bygger på. Selve Energi-dashbordet fungerer fortsatt, bare uten prisgrafen.\n\nDetaljer: {error}\n\nSe etter en oppdatering av Energy Price Graph i HACS, eller opprett en sak på {issue_tracker}. Meldingen forsvinner av seg selv så snart prisgrafen fungerer igjen."
+    },
+    "no_price_sensor": {
+      "title": "Ingen prissensor for prisgrafen",
+      "description": "Energy Price Graph fant ingen strømprissensor i energiinnstillingene dine, så ingen prisgraf vises. Angi en under Innstillinger → Dashbord → Energi → Strømnett (kostnader: \"Bruk en entitet med nåværende pris\"), eller velg en sensor i delen Avansert i integrasjonens alternativer. Med fast pris kan du se bort fra denne meldingen: kortet med gjennomsnittspris fungerer fortsatt."
+    }
+  }
+}

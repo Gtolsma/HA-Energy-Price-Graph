@@ -41,12 +41,14 @@
               "show_now_line": "Lijn op het huidige tijdstip tonen",
               "show_average_line": "Gemiddelde prijs als lijn tonen",
               "cheapest_hours": "Goedkoopste uren per dag markeren",
+              "expensive_hours": "Duurste uren per dag markeren",
               "highlight_negative": "Negatieve prijzen markeren"
             },
             "data_description": {
               "show_now_line": "Verticale stippellijn op het huidige tijdstip als de gekozen periode nu bevat.",
               "show_average_line": "Horizontale stippellijn op de gemiddelde inkoopprijs van de getoonde periode (inclusief komende prijzen).",
               "cheapest_hours": "Kleurt de N goedkoopste uren van elke dag (0 = uit), bijvoorbeeld om de wasmachine of het laden te plannen. Alleen voor dagen waarvan (bijna) alle prijzen bekend zijn, dus met een voorspelling ook vandaag en morgen.",
+              "expensive_hours": "Kleurt de N duurste uren van elke dag oranje (0 = uit), bijvoorbeeld om groot verbruik te vermijden of een thuisbatterij te ontladen. Een uur is nooit tegelijk goedkoopste en duurste.",
               "highlight_negative": "Kleurt het gebied onder nul en tekent een nullijn als de prijs negatief is."
             }
           },

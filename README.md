@@ -16,7 +16,7 @@ Show your **dynamic electricity and gas prices** directly in the **built-in Ener
 - 📊 **Import and export price** as two lines in one graph, in the grid import / export colours of the Energy dashboard
 - 🔮 **Upcoming prices as a dashed line**: from the price sensor itself, a forecast sensor you choose, or the action of Nord Pool, Tibber, EnergyZero and easyEnergy
 - 🚦 **Current price chips** in the card header, coloured green / orange / red compared to today's average
-- 📍 **Markers in the graph**: the current time, the average price, the cheapest hours of the day and negative prices
+- 📍 **Markers in the graph**: the current time, the average price, the cheapest and the most expensive hours of the day and negative prices
 - 💶 **Average price card**: what you actually paid / received per kWh next to the market average, the result as an amount and your timing
 - 🔥 **Gas price graph** on the Gas tab and, optionally, the Summary tab
 - 🧮 **Sensors** with your average prices and the result compared with the market, for today and this month
@@ -24,7 +24,7 @@ Show your **dynamic electricity and gas prices** directly in the **built-in Ener
 - 🔌 Uses the price sensors you already configured in the **Energy settings** — no extra setup needed
 - ⚙️ Configurable from the UI: resolution, line style, tabs, markers, min/max, title, sensor overrides
 - 🛠️ A repair message when a Home Assistant update breaks the graph or no price sensor is set, and diagnostics for bug reports
-- 🌍 Translated into English, Dutch and German
+- 🌍 Translated into English, Dutch, German, Swedish, Danish and Norwegian
 
 ## 🖼️ Screenshots
 
@@ -39,6 +39,7 @@ The screenshot above shows a sunny Sunday afternoon at 15:40:
 | Grey dashed vertical line | The current time |
 | Dotted horizontal line | Average import price of the day, including upcoming prices |
 | 🟩 Green band | The cheapest hours of the day (here 3) |
+| 🟧 Orange band | The most expensive hours of the day (here 3) |
 | 🟥 Red area + zero line | Negative import prices |
 | Chips in the header | Current import and export price: 🟢 favourable, 🟠 around average, 🔴 unfavourable compared to today's average |
 
@@ -90,6 +91,8 @@ With solar panels the export result is usually negative, as in this example: you
 
 Go to **Settings → Devices & services → Energy Price Graph → Configure**. The options are grouped in *Price graph*, *Markers in the graph*, *Current price*, *Average price*, *Gas*, *Forecast* and *Advanced*.
 
+<img src="https://raw.githubusercontent.com/Gtolsma/HA-Energy-Price-Graph/main/docs/images/options.png" alt="Options dialog of Energy Price Graph with the section Markers in the graph opened: lines for the current time and the average price, sliders for the cheapest and most expensive hours, and negative prices" width="560">
+
 ### 📊 Price graph
 
 | Option | Default | Description |
@@ -106,7 +109,8 @@ Go to **Settings → Devices & services → Energy Price Graph → Configure**. 
 |---|---|---|
 | Show a line at the current time | On | Vertical dashed line at the current time when the selected period includes now. |
 | Show the average price as a line | Off | Horizontal dotted line at the average import price of the period shown, including upcoming prices. |
-| Highlight the cheapest hours per day | 0 (off) | Shades the N cheapest hours of each day, for example to plan the washing machine or charging. Only days of which at least 20 hours of prices are known are marked, so with a forecast also today and tomorrow. Only at a resolution of an hour or finer. |
+| Highlight the cheapest hours per day | 0 (off) | Shades the N cheapest hours of each day green, for example to plan the washing machine or charging. Only days of which at least 20 hours of prices are known are marked, so with a forecast also today and tomorrow. Only at a resolution of an hour or finer. |
+| Highlight the most expensive hours per day | 0 (off) | Shades the N most expensive hours of each day orange, for example to avoid using much power or to discharge a home battery. Same rules as the cheapest hours; an hour is never marked as both. |
 | Highlight negative prices | On | Shades the area below zero and draws a zero line when the price is negative. |
 
 ### 🚦 Current price

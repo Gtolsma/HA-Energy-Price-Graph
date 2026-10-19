@@ -41,6 +41,7 @@ const OPT = {
   nowLine: params.get("now_line") !== "0",
   averageLine: params.get("average_line") === "1",
   cheapestHours: Number(params.get("cheapest")) || 0,
+  expensiveHours: Number(params.get("expensive")) || 0,
   highlightNegative: params.get("negative") !== "0",
   current: params.get("current") !== "0",
   priceColors: params.get("colors") !== "0",
@@ -70,7 +71,8 @@ const NOW_KEY = "energy_price_graph_now";
 const FINE_KEY = "energy_price_graph_fine";
 // Marker key with the forecast series to draw as dashed lines.
 const FORECAST_KEY = "energy_price_graph_forecast";
-// Marker key with the extra lines and areas (now, average, cheapest, negative).
+// Marker key with the extra lines and areas (now, average, cheapest and most
+// expensive hours, negative).
 const OVERLAY_KEY = "energy_price_graph_overlays";
 
 const TAG = "[energy-price-graph]";
@@ -136,6 +138,7 @@ async function loadOptions(hass) {
   OPT.nowLine = o.show_now_line !== false;
   OPT.averageLine = !!o.show_average_line;
   OPT.cheapestHours = Math.max(0, Math.round(num(o.cheapest_hours)));
+  OPT.expensiveHours = Math.max(0, Math.round(num(o.expensive_hours)));
   OPT.highlightNegative = o.highlight_negative !== false;
   OPT.current = o.show_current !== false;
   OPT.priceColors = o.show_price_colors !== false;
@@ -269,6 +272,7 @@ function colors() {
     export: themeColor("--energy-grid-return-color", "#8353d1"),
     gas: themeColor("--energy-gas-color", "#8e021b"),
     good: themeColor("--success-color", "#43a047"),
+    warn: themeColor("--warning-color", "#ffa600"),
     bad: themeColor("--error-color", "#db4437"),
     muted: themeColor("--secondary-text-color", "#727272"),
   };
@@ -311,10 +315,48 @@ const LABELS = {
     timing: "Timing", cheapHours: "in günstigen Stunden", expensiveHours: "in teuren Stunden",
     timingHelp: "Anteil deines Bezugs im günstigsten und im teuersten Viertel der Stunden jedes Tages. Bei gleichmäßigem Verbrauch sind beide etwa 25 %.",
   },
+  sv: {
+    title: "Elpris", imp: "Import", exp: "Export", now: "Aktuellt pris",
+    gasTitle: "Gaspris", gas: "Gas", forecast: "prognos", todayAvg: "medel idag",
+    result: "Resultat mot marknaden",
+    savingsHelp: "Import: (marknadspris − ditt pris) × köpt energi. Export: (ditt pris − marknadspris) × såld energi. Positivt betyder att du gjorde det bättre än marknadsgenomsnittet.",
+    avgTitle: "Medelpris", you: "Du", market: "Marknad",
+    youHelp: "Vad du faktiskt betalade eller fick per kWh under den valda perioden (kostnad ÷ energi)",
+    marketHelp: "Genomsnittligt marknadspris under den valda perioden",
+    surchargeHelp: "inklusive påslaget från integrationens alternativ",
+    timing: "Timing", cheapHours: "under billiga timmar", expensiveHours: "under dyra timmar",
+    timingHelp: "Andel av din import under den billigaste och den dyraste fjärdedelen av dygnets timmar. Vid jämnt fördelad förbrukning är båda ungefär 25 %.",
+  },
+  da: {
+    title: "Elpris", imp: "Import", exp: "Eksport", now: "Aktuel pris",
+    gasTitle: "Gaspris", gas: "Gas", forecast: "prognose", todayAvg: "gennemsnit i dag",
+    result: "Resultat ift. markedet",
+    savingsHelp: "Import: (markedspris − din pris) × købt energi. Eksport: (din pris − markedspris) × solgt energi. Positiv betyder, at du klarede dig bedre end markedsgennemsnittet.",
+    avgTitle: "Gennemsnitspris", you: "Dig", market: "Marked",
+    youHelp: "Hvad du faktisk betalte eller modtog pr. kWh i den valgte periode (omkostning ÷ energi)",
+    marketHelp: "Gennemsnitlig markedspris i den valgte periode",
+    surchargeHelp: "inklusive tillægget fra integrationens indstillinger",
+    timing: "Timing", cheapHours: "i billige timer", expensiveHours: "i dyre timer",
+    timingHelp: "Andel af din import i den billigste og den dyreste fjerdedel af døgnets timer. Ved jævnt fordelt forbrug er begge cirka 25 %.",
+  },
+  nb: {
+    title: "Strømpris", imp: "Import", exp: "Eksport", now: "Nåværende pris",
+    gasTitle: "Gasspris", gas: "Gass", forecast: "prognose", todayAvg: "gjennomsnitt i dag",
+    result: "Resultat mot markedet",
+    savingsHelp: "Import: (markedspris − din pris) × kjøpt energi. Eksport: (din pris − markedspris) × solgt energi. Positivt betyr at du gjorde det bedre enn markedsgjennomsnittet.",
+    avgTitle: "Gjennomsnittspris", you: "Du", market: "Marked",
+    youHelp: "Hva du faktisk betalte eller mottok per kWh i den valgte perioden (kostnad ÷ energi)",
+    marketHelp: "Gjennomsnittlig markedspris i den valgte perioden",
+    surchargeHelp: "inkludert påslaget fra integrasjonens alternativer",
+    timing: "Timing", cheapHours: "i billige timer", expensiveHours: "i dyre timer",
+    timingHelp: "Andel av importen din i den billigste og den dyreste fjerdedelen av døgnets timer. Ved jevnt fordelt forbruk er begge omtrent 25 %.",
+  },
 };
 
 function labels(hass) {
-  const l = LABELS[lang(hass).split("-")[0]] || LABELS.en;
+  const code = lang(hass).split("-")[0];
+  // Norwegian: Nynorsk ("nn") and the generic code ("no") use the Bokmål labels.
+  const l = LABELS[code === "nn" || code === "no" ? "nb" : code] || LABELS.en;
   return {
     ...l,
     title: OPT.title || l.title,
@@ -417,8 +459,9 @@ function graphCard(title, entities, forecasts, collectionKey, L) {
       now: OPT.nowLine,
       average: OPT.averageLine,
       cheapest: OPT.cheapestHours,
+      expensive: OPT.expensiveHours,
       negative: OPT.highlightNegative,
-      colors: { good: c.good, bad: c.bad, muted: c.muted },
+      colors: { good: c.good, warn: c.warn, bad: c.bad, muted: c.muted },
     },
     grid_options: { columns: "full" },
   };
@@ -839,7 +882,8 @@ function withForecast(data, forecasts, hass, style, onLoad) {
 }
 
 /* ------------------------------------------------------------------------ *
- * Markers: current time, average price, cheapest hours, negative prices
+ * Markers: current time, average price, cheapest and most expensive hours,
+ * negative prices
  *
  * The chart only has the line series components of ECharts, so these are
  * drawn as extra line series: a vertical or horizontal two-point line, or a
@@ -887,11 +931,13 @@ function timeWeightedMean(points) {
 }
 
 /**
- * Start times of the `count` cheapest hours of each day. Only days of which
- * at least 20 hours are known count, so a day that has only just started is
- * not marked.
+ * Start times of the `count` cheapest (or, with `expensive`, the most
+ * expensive) hours of each day. Only days of which at least 20 hours are
+ * known count, so a day that has only just started is not marked. Hours in
+ * `exclude` are skipped, so the cheapest and the most expensive hours never
+ * overlap.
  */
-function cheapestHourSet(points, count) {
+function extremeHourSet(points, count, expensive = false, exclude = new Set()) {
   const out = new Set();
   if (!(count > 0) || !points.length) return out;
   const w = durations(points, HOUR);
@@ -910,11 +956,26 @@ function cheapestHourSet(points, count) {
     if (!days.has(d)) days.set(d, []);
     days.get(d).push([h, b.sum / b.weight]);
   }
+  const order = expensive ? (a, b) => b[1] - a[1] : (a, b) => a[1] - b[1];
   for (const list of days.values()) {
     if (list.length < 20) continue;
-    list.sort((a, b) => a[1] - b[1]).slice(0, count).forEach(([h]) => out.add(h));
+    list
+      .filter(([h]) => !exclude.has(h))
+      .sort(order)
+      .slice(0, count)
+      .forEach(([h]) => out.add(h));
   }
   return out;
+}
+
+/** Start times of the `count` cheapest hours of each day. */
+function cheapestHourSet(points, count) {
+  return extremeHourSet(points, count);
+}
+
+/** Start times of the `count` most expensive hours of each day. */
+function expensiveHourSet(points, count, exclude) {
+  return extremeHourSet(points, count, true, exclude);
 }
 
 /**
@@ -987,16 +1048,19 @@ function withOverlays(data, ov, style, now = Date.now()) {
     lineStyle: { color, type, width, opacity: 0.8 },
   });
 
-  if (ov.cheapest > 0 && medianStep(points) <= HOUR) {
-    const hours = cheapestHourSet(points, ov.cheapest);
-    if (hours.size) {
-      // A band from zero to the top of the graph, so it stays visible next
-      // to the line and does not mix with the negative-price area.
-      const top = yMax > 0 ? yMax : yMin;
-      const inCheap = (t) => hours.has(Math.floor(t / HOUR) * HOUR);
-      const band = runData(points.map(([t]) => [t, top]), inCheap);
-      out.push({ ...area("cheapest", band, c.good || "#43a047"), smooth: false, step: false, z: 0 });
-    }
+  if ((ov.cheapest > 0 || ov.expensive > 0) && medianStep(points) <= HOUR) {
+    // Bands from zero to the top of the graph, so they stay visible next to
+    // the line and do not mix with the negative-price area.
+    const top = yMax > 0 ? yMax : yMin;
+    const band = (id, hours, color) => {
+      if (!hours.size) return;
+      const inside = (t) => hours.has(Math.floor(t / HOUR) * HOUR);
+      const data = runData(points.map(([t]) => [t, top]), inside);
+      out.push({ ...area(id, data, color), smooth: false, step: false, z: 0 });
+    };
+    const cheap = cheapestHourSet(points, ov.cheapest);
+    band("cheapest", cheap, c.good || "#43a047");
+    band("expensive", expensiveHourSet(points, ov.expensive, cheap), c.warn || "#ffa600");
   }
   if (hasNegative) {
     out.push(area("negative", points.map(([t, v]) => [t, Math.min(v, 0)]), c.bad || "#db4437"));
@@ -1799,6 +1863,7 @@ if (globalThis.window?.customElements) {
 // only for its side effects.
 export {
   cheapestHourSet,
+  expensiveHourSet,
   finePeriod,
   forecastPoints,
   forecastScale,

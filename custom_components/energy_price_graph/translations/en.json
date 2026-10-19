@@ -41,12 +41,14 @@
               "show_now_line": "Show a line at the current time",
               "show_average_line": "Show the average price as a line",
               "cheapest_hours": "Highlight the cheapest hours per day",
+              "expensive_hours": "Highlight the most expensive hours per day",
               "highlight_negative": "Highlight negative prices"
             },
             "data_description": {
               "show_now_line": "Vertical dashed line at the current time when the selected period includes now.",
               "show_average_line": "Horizontal dotted line at the average import price of the period shown (including upcoming prices).",
               "cheapest_hours": "Shades the N cheapest hours of each day (0 = off), for example to plan the washing machine or charging. Only for days of which (almost) all prices are known, so with a forecast also today and tomorrow.",
+              "expensive_hours": "Shades the N most expensive hours of each day orange (0 = off), for example to avoid using much power or to discharge a home battery. An hour is never marked as both cheapest and most expensive.",
               "highlight_negative": "Shades the area below zero and draws a zero line when the price is negative."
             }
           },

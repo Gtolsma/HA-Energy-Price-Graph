@@ -41,12 +41,14 @@
               "show_now_line": "Linie zur aktuellen Uhrzeit anzeigen",
               "show_average_line": "Durchschnittspreis als Linie anzeigen",
               "cheapest_hours": "Günstigste Stunden pro Tag hervorheben",
+              "expensive_hours": "Teuerste Stunden pro Tag hervorheben",
               "highlight_negative": "Negative Preise hervorheben"
             },
             "data_description": {
               "show_now_line": "Senkrechte gestrichelte Linie zur aktuellen Uhrzeit, wenn der gewählte Zeitraum jetzt enthält.",
               "show_average_line": "Waagerechte gepunktete Linie beim durchschnittlichen Bezugspreis des angezeigten Zeitraums (einschließlich kommender Preise).",
               "cheapest_hours": "Färbt die N günstigsten Stunden jedes Tages (0 = aus), zum Beispiel um Waschmaschine oder Laden zu planen. Nur für Tage, deren Preise (fast) alle bekannt sind, mit Prognose also auch heute und morgen.",
+              "expensive_hours": "Färbt die N teuersten Stunden jedes Tages orange (0 = aus), zum Beispiel um großen Verbrauch zu vermeiden oder einen Heimspeicher zu entladen. Eine Stunde ist nie zugleich günstigste und teuerste.",
               "highlight_negative": "Färbt den Bereich unter null und zeichnet eine Nulllinie, wenn der Preis negativ ist."
             }
           },

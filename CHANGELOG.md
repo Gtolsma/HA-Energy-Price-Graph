@@ -5,6 +5,20 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Markers in the price graph: the most expensive hours of each day as an orange band (option *Highlight the most expensive hours per day*, off by default). An hour is never marked as both cheapest and most expensive.
+- Swedish, Danish and Norwegian translation of the setup, options, sensors, repair messages and the cards on the Energy dashboard.
+- Issue templates for bug reports and feature requests.
+- The release notes on GitHub are filled in from this changelog when a release is published without notes.
+- Tests for the setup and options forms.
+
+### Changed
+
+- README: options screenshot, the orange band in the price graph screenshot and the new languages.
+
 ## [1.6.1] - 2026-10-19
 
 ### Changed
