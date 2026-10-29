@@ -5,6 +5,7 @@ import { describe, it } from "node:test";
 
 import {
   cheapestHourSet,
+  collectionOf,
   collectionProp,
   costPerDay,
   dayHours,
@@ -19,6 +20,7 @@ import {
   marketPeriod,
   monthOutlook,
   monthPeriod,
+  patchFetch,
   nextMidnight,
   paidAverage,
   previousPeriod,
@@ -36,6 +38,7 @@ import {
 } from "../../custom_components/energy_price_graph/frontend/energy-price-graph.js";
 
 const HOUR = 3600000;
+const DAY = 24 * HOUR;
 const T0 = Date.parse("2026-09-28T00:00:00+02:00"); // local midnight
 
 /** Hourly points for a whole day with the given prices. */
@@ -375,6 +378,96 @@ describe("collectionProp", () => {
   it("uses the Energy date picker collection without a key", () => {
     assert.equal(collectionProp(undefined), "_energy");
     assert.equal(collectionProp("energy_dashboard"), "_energy_dashboard");
+  });
+
+  it("uses the dashboard's own collection on a dashboard with a URL path", () => {
+    assert.equal(collectionProp(undefined, "dashboard-home"), "_energy_dashboard-home");
+    assert.equal(collectionProp("energy_custom", "dashboard-home"), "_energy_custom");
+  });
+});
+
+describe("collectionOf", () => {
+  const sub = { subscribe() {} };
+  it("finds the collection of the dashboard, then the plain one", () => {
+    assert.equal(collectionOf({ panelUrl: "home", connection: { "_energy_home": sub } }), sub);
+    assert.equal(collectionOf({ panelUrl: "home", connection: { _energy: sub } }), sub);
+    assert.equal(collectionOf({ panelUrl: "home", connection: {} }), undefined);
+  });
+  it("does not fall back when a key is given", () => {
+    assert.equal(collectionOf({ connection: { _energy: sub } }, "energy_dashboard"), undefined);
+  });
+});
+
+describe("patchFetch", () => {
+  // A stand-in for hui-statistics-graph-card: _getStatistics fetches with the
+  // period in its config; changing _config makes it fetch again (like Lit).
+  function makeCard({ delays, has5min = true }) {
+    const calls = [];
+    class Card {
+      constructor() {
+        this.__config = { entities: [{ entity: "sensor.price" }], period: "5minute", energy_price_graph_fine: true };
+        this.shown = null;
+        this.hass = {
+          callWS: async () => ({ "sensor.price": has5min ? [{ mean: 1 }] : [] }),
+        };
+      }
+      get _config() {
+        return this.__config;
+      }
+      set _config(v) {
+        const old = this.__config;
+        this.__config = v;
+        if (old.period !== v.period) queueMicrotask(() => this._getStatistics());
+      }
+      async _getStatistics() {
+        const period = this._config.period;
+        calls.push(period);
+        await new Promise((r) => setTimeout(r, delays[period] ?? 1));
+        this.shown = period;
+      }
+    }
+    patchFetch(Card.prototype);
+    return { card: new Card(), calls };
+  }
+  const settle = () => new Promise((r) => setTimeout(r, 120));
+
+  it("fetches a month with hourly statistics, even when 5-minute ones are slow", async () => {
+    const { card } = makeCard({ delays: { "5minute": 60, hour: 5 } });
+    // The card was showing today (5 minutes) and the date picker moves to a month.
+    card._energyStart = new Date(Date.now() - 28 * DAY);
+    card._energyEnd = new Date();
+    card._getStatistics();
+    await settle();
+    assert.equal(card._config.period, "hour");
+    assert.equal(card.shown, "hour");
+  });
+
+  it("lets the newest date range win when fetches overlap", async () => {
+    const { card } = makeCard({ delays: { "5minute": 60, hour: 5 } });
+    card._energyStart = new Date(Date.now() - 6 * HOUR);
+    card._energyEnd = new Date(Date.now() + 18 * HOUR);
+    card._getStatistics(); // today: 5 minutes, slow
+    card._energyStart = new Date(Date.now() - 28 * DAY);
+    card._energyEnd = new Date();
+    card._getStatistics(); // month: hourly
+    await settle();
+    assert.equal(card.shown, "hour");
+  });
+
+  it("falls back to hourly statistics when there are no 5-minute ones", async () => {
+    const { card } = makeCard({ delays: {}, has5min: false });
+    card._energyStart = new Date(Date.now() - 6 * HOUR);
+    card._energyEnd = new Date(Date.now() + 18 * HOUR);
+    card._getStatistics();
+    await settle();
+    assert.equal(card.shown, "hour");
+  });
+
+  it("leaves cards without the marker alone", async () => {
+    const { card, calls } = makeCard({ delays: {} });
+    card.__config = { entities: [], period: "5minute" };
+    await card._getStatistics();
+    assert.deepEqual(calls, ["5minute"]);
   });
 });
 

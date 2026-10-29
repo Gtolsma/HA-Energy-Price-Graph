@@ -5,6 +5,19 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.1] - 2026-10-29
+
+### Fixed
+
+- Price graph with *Auto (fine)*: after picking a longer period (such as a month) in the date picker, the graph often showed only the last 10 days until a hard refresh of the browser. The card fetched the 5-minute statistics of the previous period and the hourly ones at the same time, and the slower answer won. The resolution is now chosen before the card fetches, and a newer date range always wins.
+- Cards added by hand to a dashboard without `collection_key` now find the Energy date picker card of that dashboard (its collection is named after the dashboard).
+
+### Changed
+
+- Prepared for Home Assistant 2026.11: the current-price chips in the graph header keep updating now that the statistics graph card no longer redraws when the states change.
+- A warning is logged once when the internal cost sensor data of the energy integration has an unexpected format, instead of silently leaving those costs out.
+- README: installation via the Marketplace, which replaces HACS from Home Assistant 2026.11.
+
 ## [1.8.0] - 2026-10-20
 
 ### Added
