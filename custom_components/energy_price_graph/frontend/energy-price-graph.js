@@ -97,11 +97,20 @@ function lang(hass) {
 
 /**
  * Property of the energy data collection on the connection. Without a key
- * Home Assistant uses "_energy", the collection of the Energy date picker
- * card on an ordinary dashboard.
+ * the Energy date picker card on an ordinary dashboard uses a collection
+ * named after the dashboard ("_energy_<url path>"), or "_energy" when the
+ * page has no URL path.
  */
-function collectionProp(key) {
-  return key ? `_${key}` : "_energy";
+function collectionProp(key, panelUrl) {
+  if (key) return `_${key}`;
+  return panelUrl ? `_energy_${panelUrl}` : "_energy";
+}
+
+/** The energy data collection a card follows, if it exists yet. */
+function collectionOf(hass, key) {
+  const conn = hass?.connection;
+  if (!conn) return undefined;
+  return conn[collectionProp(key, hass.panelUrl)] || (key ? undefined : conn[collectionProp()]);
 }
 
 function esc(text) {
@@ -586,7 +595,7 @@ function graphCard(title, entities, forecasts, collectionKey, L, hours) {
     chart_type: "line",
     // "auto" is the card's default; leaving the key out keeps older frontends
     // (which do not know "auto") working. "auto_fine" starts at 5 minutes and
-    // is adjusted to the selected date range (see handleFinePeriod).
+    // is adjusted to the selected date range (see patchStatisticsCard).
     ...(fine ? { period: "5minute", [FINE_KEY]: true } : OPT.period !== "auto" && { period: OPT.period }),
     energy_date_selection: true,
     collection_key: collectionKey,
@@ -1508,7 +1517,7 @@ function todayStats(card, hass, item, current) {
 }
 
 /* "Auto (fine)": choose the resolution from the selected date range. */
-const FINE_STATE = new WeakMap(); // card -> { unsub }
+const FINE_STATE = new WeakMap(); // card -> { unsub } (fallback only)
 
 function finePeriod(start, end, now = Date.now()) {
   const days = ((end ? end.getTime() : now) - start.getTime()) / DAY;
@@ -1521,10 +1530,15 @@ function finePeriod(start, end, now = Date.now()) {
   return "month";
 }
 
+/**
+ * Fallback for frontends without the card's own fetch method (see
+ * patchStatisticsCard): follow the date picker ourselves and set the period.
+ * This can race with the card's own fetch, so it is only used when needed.
+ */
 function handleFinePeriod(card) {
   const cfg = cardConfig(card);
   if (!cfg?.[FINE_KEY] || FINE_STATE.has(card) || !card.hass) return;
-  const collection = card.hass.connection?.[collectionProp(cfg.collection_key)];
+  const collection = collectionOf(card.hass, cfg.collection_key);
   if (!collection?.subscribe) return; // tried again on the next update
   const state = {};
   FINE_STATE.set(card, state);
@@ -1554,7 +1568,9 @@ async function resolveFinePeriod(card, data) {
   if (period !== "5minute") return period;
   const ids = (cardConfig(card)?.entities || []).map((e) => (typeof e === "string" ? e : e.entity));
   try {
-    const res = await card.hass.callWS({
+    const callWS = card.hass?.callWS ? (msg) => card.hass.callWS(msg) : card._api?.callWS;
+    if (!callWS) return "hour";
+    const res = await callWS({
       type: "recorder/statistics_during_period",
       start_time: data.start.toISOString(),
       ...(data.end && { end_time: data.end.toISOString() }),
@@ -1576,20 +1592,135 @@ function applyFinePeriod(card, period) {
   }
 }
 
+/*
+ * The statistics-graph card fetches its statistics itself as soon as the date
+ * range changes, with the period in its config at that moment. Changing the
+ * period afterwards (from our own date picker subscription) started a second
+ * fetch, and whichever answer came last was shown: often the slower 5-minute
+ * one, so a month showed only the last 10 days until a hard refresh. Instead
+ * we now decide the period inside the card's fetch, before it asks the
+ * recorder, and run the fetches of a card one after the other so the newest
+ * date range always wins.
+ */
+const FETCH_STATE = new WeakMap(); // card -> { seq, chain, key, period, pending }
+
+function rangeKey(start, end) {
+  return `${start ? start.getTime() : ""}-${end ? end.getTime() : ""}`;
+}
+
+/** Period for a date range, cached per card so a repeated fetch does not ask again. */
+function finePeriodFor(card, state, start, end) {
+  const key = rangeKey(start, end);
+  if (state.key === key && state.period) return Promise.resolve(state.period);
+  if (state.key === key && state.pending) return state.pending;
+  state.key = key;
+  state.period = null;
+  const pending = resolveFinePeriod(card, { start, end }).then((period) => {
+    if (state.key === key) state.period = period;
+    return period;
+  });
+  state.pending = pending.finally(() => {
+    if (state.pending === pending) state.pending = null;
+  });
+  return pending;
+}
+
+/** Put the period in the card's config; true when it changed. */
+function setCardPeriod(card, period) {
+  const current = cardConfig(card);
+  if (!period || !current || current.period === period) return false;
+  if ("_config" in card) card._config = { ...current, period };
+  else if (typeof card.setConfig === "function") card.setConfig({ ...current, period });
+  else return false;
+  return true;
+}
+
+function patchFetch(proto) {
+  const original = proto._getStatistics;
+  if (typeof original !== "function") return false;
+  proto._getStatistics = function (...args) {
+    if (!cardConfig(this)?.[FINE_KEY]) return original.apply(this, args);
+    let state = FETCH_STATE.get(this);
+    if (!state) FETCH_STATE.set(this, (state = { seq: 0, chain: Promise.resolve() }));
+    const seq = ++state.seq;
+    const run = async () => {
+      if (seq !== state.seq) return; // a newer fetch was asked for meanwhile
+      const start = this._energyStart;
+      let period = "hour"; // no date range (yet): the card shows its default days
+      try {
+        if (start) period = await finePeriodFor(this, state, start, this._energyEnd);
+      } catch (e) {
+        console.warn(TAG, "could not choose the resolution", e);
+      }
+      if (seq !== state.seq) return;
+      if (setCardPeriod(this, period)) {
+        // The card fetches again by itself when its period changes; only
+        // fetch here when it did not.
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        if (seq !== state.seq) return;
+      }
+      return original.apply(this, args);
+    };
+    state.chain = state.chain.then(run, run);
+    return state.chain;
+  };
+  return true;
+}
+
+/** Whether a prototype chain already has a hass property (a Lit property). */
+function hasHassAccessor(proto) {
+  for (let p = proto; p && p !== HTMLElement.prototype; p = Object.getPrototypeOf(p)) {
+    const d = Object.getOwnPropertyDescriptor(p, "hass");
+    if (d && (d.set || d.get)) return true;
+  }
+  return false;
+}
+
+const HASS = Symbol("energyPriceGraphHass");
+const HEADER_QUEUED = Symbol("energyPriceGraphHeaderQueued");
+
+function queueHeader(card) {
+  if (card[HEADER_QUEUED]) return;
+  card[HEADER_QUEUED] = true;
+  queueMicrotask(() => {
+    card[HEADER_QUEUED] = false;
+    decorateHeader(card);
+  });
+}
+
 function patchStatisticsCard(cls) {
   const proto = cls?.prototype;
   if (!proto || proto[MARK]) return;
+  const fetchPatched = patchFetch(proto);
+  // Since Home Assistant 2026.11 the card gets its data from contexts and no
+  // longer has a hass property: Lovelace still sets it, but that no longer
+  // updates the card, so the current-price chips would stand still. Catch it
+  // ourselves to refresh them.
+  if (!hasHassAccessor(proto)) {
+    Object.defineProperty(proto, "hass", {
+      configurable: true,
+      get() {
+        return this[HASS];
+      },
+      set(value) {
+        this[HASS] = value;
+        if (value) queueHeader(this);
+      },
+    });
+  }
   const original = proto.updated;
   proto.updated = function (changed) {
     const result = original?.call(this, changed);
     decorateHeader(this);
-    try {
-      handleFinePeriod(this);
-      // Lovelace may set the original config again: re-apply our period.
-      const state = FINE_STATE.get(this);
-      if (state?.period) applyFinePeriod(this, state.period);
-    } catch (e) {
-      console.warn(TAG, "could not adjust the resolution", e);
+    if (!fetchPatched) {
+      try {
+        handleFinePeriod(this);
+        // Lovelace may set the original config again: re-apply our period.
+        const state = FINE_STATE.get(this);
+        if (state?.period) applyFinePeriod(this, state.period);
+      } catch (e) {
+        console.warn(TAG, "could not adjust the resolution", e);
+      }
     }
     return result;
   };
@@ -1846,7 +1977,7 @@ class EnergyPriceAverageCard extends (globalThis.HTMLElement ?? class {}) {
       this._autoConfig();
       return;
     }
-    const collection = this._hass.connection?.[collectionProp(this._config.collection_key)];
+    const collection = collectionOf(this._hass, this._config.collection_key);
     if (!collection?.subscribe) {
       // The Energy dashboard (or an Energy date picker card) creates the
       // collection; wait until it exists and give a hint after a while.
@@ -2195,7 +2326,7 @@ class EnergyPriceHoursCard extends (globalThis.HTMLElement ?? class {}) {
       this._autoConfig();
       return;
     }
-    const collection = this._hass.connection?.[collectionProp(this._config.collection_key)];
+    const collection = collectionOf(this._hass, this._config.collection_key);
     if (!collection?.subscribe) {
       // No date picker (yet): show today and look again for a while.
       clearTimeout(this._retry);
@@ -2655,7 +2786,7 @@ class EnergyPriceWaterCard extends (globalThis.HTMLElement ?? class {}) {
       this._autoConfig();
       return;
     }
-    const collection = this._hass.connection?.[collectionProp(this._config.collection_key)];
+    const collection = collectionOf(this._hass, this._config.collection_key);
     if (!collection?.subscribe) {
       clearTimeout(this._retry);
       this._waited = (this._waited || 0) + 1;
@@ -2962,7 +3093,7 @@ class EnergyPriceGraphCard extends (globalThis.HTMLElement ?? class {}) {
       // Hint when the dashboard has no Energy date picker card.
       clearTimeout(this._hint);
       this._hint = setTimeout(() => {
-        if (!this._hass?.connection?.[collectionProp(cfg.collection_key)]) {
+        if (!collectionOf(this._hass, cfg.collection_key)) {
           const p = document.createElement("div");
           p.style.cssText = "padding:8px 16px;color:var(--secondary-text-color);font-size:12px";
           p.textContent = L.needPicker;
@@ -3062,6 +3193,8 @@ export {
   waterPeriod,
   waterSources,
   collectionProp,
+  collectionOf,
+  patchFetch,
   expensiveHourSet,
   finePeriod,
   forecastPoints,

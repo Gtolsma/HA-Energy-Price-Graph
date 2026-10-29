@@ -7,12 +7,62 @@ source) and the older one (flow_from / flow_to lists), like the frontend.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import logging
 from typing import Any
 
 from homeassistant.components.energy.data import async_get_manager
 from homeassistant.core import HomeAssistant
 
 from .const import CONF_EXPORT_ENTITY, CONF_GAS_ENTITY, CONF_IMPORT_ENTITY
+
+_LOGGER = logging.getLogger(__name__)
+_WARNED: set[str] = set()
+
+
+def _warn_once(key: str, message: str, *args: Any) -> None:
+    """Log a warning about changed internals only once per run."""
+    if key not in _WARNED:
+        _WARNED.add(key)
+        _LOGGER.warning(message, *args)
+
+
+def read_cost_sensors(data: Any) -> dict[str, str]:
+    """The cost sensors the energy integration made for stats without a cost stat.
+
+    hass.data["energy"]["cost_sensors"] is internal data of the energy
+    integration and may change without notice. Read it defensively and warn
+    once when its shape is unexpected, so the missing costs do not go unnoticed.
+    """
+    if data is None:
+        return {}
+    if not isinstance(data, dict):
+        _warn_once(
+            "energy",
+            "Unexpected energy integration data (%s); costs without their own "
+            "statistic are not used",
+            type(data).__name__,
+        )
+        return {}
+    sensors = data.get("cost_sensors")
+    if sensors is None:
+        return {}
+    if not isinstance(sensors, dict):
+        _warn_once(
+            "cost_sensors",
+            "Unexpected format of the energy cost sensors (%s); costs without "
+            "their own statistic are not used",
+            type(sensors).__name__,
+        )
+        return {}
+    clean = {
+        k: v for k, v in sensors.items() if isinstance(k, str) and isinstance(v, str)
+    }
+    if len(clean) != len(sensors):
+        _warn_once(
+            "cost_sensor_items",
+            "Some energy cost sensors have an unexpected format and are skipped",
+        )
+    return clean
 
 
 @dataclass
@@ -118,5 +168,5 @@ async def async_energy_setup(
         manager = await async_get_manager(hass)
     except Exception:  # noqa: BLE001 - the energy integration is optional
         return None
-    cost_sensors = (hass.data.get("energy") or {}).get("cost_sensors") or {}
+    cost_sensors = read_cost_sensors(hass.data.get("energy"))
     return apply_overrides(parse_prefs(manager.data, cost_sensors), options)

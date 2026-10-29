@@ -85,7 +85,15 @@ With solar panels the export result is usually negative, as in this example: you
 
 ## 📦 Installation
 
-### HACS (custom repository)
+### Marketplace (Home Assistant 2026.11 and newer)
+
+From Home Assistant 2026.11 the Marketplace replaces HACS. This integration is a custom repository, so a GitHub connection is needed to add and update it.
+
+1. Go to **Settings → Marketplace → Add from link** and add `https://github.com/Gtolsma/HA-Energy-Price-Graph`
+2. Download **Energy Price Graph** and restart Home Assistant
+3. Add the integration and refresh your browser once, as in steps 3 and 4 below
+
+### HACS (Home Assistant 2026.10 and older)
 
 1. Add this repository to HACS with the button below, or by hand: HACS → ⋮ → **Custom repositories** → add `https://github.com/Gtolsma/HA-Energy-Price-Graph` with type **Integration**
 
