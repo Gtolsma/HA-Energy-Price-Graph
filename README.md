@@ -1,6 +1,6 @@
 # ⚡ Energy Price Graph for Home Assistant
 
-[![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://hacs.xyz/)
+[![HACS Default](https://img.shields.io/badge/HACS-Default-41BDF5.svg)](https://hacs.xyz/)
 [![Release](https://img.shields.io/github/v/release/Gtolsma/HA-Energy-Price-Graph)](https://github.com/Gtolsma/HA-Energy-Price-Graph/releases)
 [![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2025.8%2B-18BCF2.svg)](https://www.home-assistant.io/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -87,29 +87,29 @@ With solar panels the export result is usually negative, as in this example: you
 
 ### Marketplace (Home Assistant 2026.11 and newer)
 
-From Home Assistant 2026.11 the Marketplace replaces HACS. This integration is a custom repository, so a GitHub connection is needed to add and update it.
-
-1. Go to **Settings → Marketplace → Add from link** and add `https://github.com/Gtolsma/HA-Energy-Price-Graph`
-2. Download **Energy Price Graph** and restart Home Assistant
-3. Add the integration and refresh your browser once, as in steps 3 and 4 below
+1. Go to **Settings → Marketplace**, search for **Energy Price Graph** and download it
+2. Restart Home Assistant
 
 ### HACS (Home Assistant 2026.10 and older)
 
-1. Add this repository to HACS with the button below, or by hand: HACS → ⋮ → **Custom repositories** → add `https://github.com/Gtolsma/HA-Energy-Price-Graph` with type **Integration**
+1. Open HACS and search for **Energy Price Graph**, or use the button below
 
    [![Open your Home Assistant instance and open this repository in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Gtolsma&repository=HA-Energy-Price-Graph&category=integration)
 
-2. Download **Energy Price Graph** in HACS and restart Home Assistant
-3. Add the integration with the button below, or via **Settings → Devices & services → Add integration → Energy Price Graph**
+2. Download **Energy Price Graph** and restart Home Assistant
+
+### Then, for both
+
+1. Add the integration with the button below, or via **Settings → Devices & services → Add integration → Energy Price Graph**
 
    [![Open your Home Assistant instance and start setting up Energy Price Graph](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=energy_price_graph)
 
-4. Refresh your browser once
+2. Refresh your browser once
 
 ### Manual
 
 1. Copy `custom_components/energy_price_graph` to `/config/custom_components/energy_price_graph`
-2. Restart Home Assistant and add the integration as in step 3 above
+2. Restart Home Assistant and add the integration as described under *Then, for both*
 3. Refresh your browser once
 
 ## ⚙️ Options
