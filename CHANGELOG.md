@@ -5,6 +5,12 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.0] - 2026-11-03
+
+### Added
+
+- Compare in the price graphs: when *Compare data* is on in the Energy date picker, the electricity and gas price graphs also show the prices of the previous period (or the same period last year) as a faded line, shifted onto the selected period in the same way as the energy usage graph. The tooltip shows the day (and time) each compare price is from. Option *Show the compare period*, on by default.
+
 ## [1.8.1] - 2026-10-29
 
 ### Fixed

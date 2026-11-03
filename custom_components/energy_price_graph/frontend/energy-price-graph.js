@@ -64,6 +64,7 @@ const OPT = {
   forecastGas: params.get("forecast_gas") || null,
   forecastAttribute: null,
   forecastValueKey: null,
+  compare: params.get("compare") !== "0",
 };
 
 // Marker key on our card config. The statistics-graph card ignores unknown
@@ -78,6 +79,9 @@ const FORECAST_KEY = "energy_price_graph_forecast";
 // Marker key with the extra lines and areas (now, average, cheapest and most
 // expensive hours, negative).
 const OVERLAY_KEY = "energy_price_graph_overlays";
+// Marker key with the labels of the compare line (Energy date picker →
+// compare); present when the option is on.
+const COMPARE_KEY = "energy_price_graph_compare";
 
 const TAG = "[energy-price-graph]";
 // Version of this module, from the ?v= parameter the loader adds.
@@ -86,6 +90,7 @@ const MARK = "__energyPriceInjected";
 const LINE_STYLES = ["smooth", "straight", "stepped"];
 const FORECAST_PREFIX = "epg-forecast-";
 const OVERLAY_PREFIX = "epg-overlay-";
+const COMPARE_PREFIX = "epg-compare-";
 const HOUR = 3600000;
 const DAY = 86400000;
 
@@ -156,6 +161,7 @@ async function loadOptions(hass) {
   OPT.views = Array.isArray(o.views) && o.views.length ? o.views : OPT.views;
   OPT.showExport = o.show_export !== false;
   OPT.minmax = !!o.minmax;
+  OPT.compare = o.show_compare !== false;
   OPT.line = LINE_STYLES.includes(o.line_style) ? o.line_style : "straight";
   OPT.nowLine = o.show_now_line !== false;
   OPT.averageLine = !!o.show_average_line;
@@ -333,6 +339,8 @@ const LABELS = {
     noWater: "No water source in the Energy settings.",
     waterNoPrice: "No water price set. Add the price in the Energy settings, under the water source.",
     needPicker: "Add the Energy date picker card to this dashboard to choose the period.",
+    comparePrevious: "previous period",
+    compareYear: "last year",
   },
   nl: {
     title: "Stroomprijs", imp: "Inkoop", exp: "Teruglevering", now: "Huidige prijs",
@@ -362,6 +370,8 @@ const LABELS = {
     noWater: "Geen watermeter in de Energie-instellingen.",
     waterNoPrice: "Geen waterprijs ingesteld. Stel de prijs in bij de Energie-instellingen, onder de watermeter.",
     needPicker: "Voeg de kaart Energie-datumkiezer toe aan dit dashboard om de periode te kiezen.",
+    comparePrevious: "vorige periode",
+    compareYear: "vorig jaar",
   },
   de: {
     title: "Strompreis", imp: "Bezug", exp: "Einspeisung", now: "Aktueller Preis",
@@ -391,6 +401,8 @@ const LABELS = {
     noWater: "Keine Wasserquelle in den Energie-Einstellungen.",
     waterNoPrice: "Kein Wasserpreis festgelegt. Den Preis in den Energie-Einstellungen bei der Wasserquelle eintragen.",
     needPicker: "Füge diesem Dashboard die Karte Energie-Datumsauswahl hinzu, um den Zeitraum zu wählen.",
+    comparePrevious: "Vorperiode",
+    compareYear: "Vorjahr",
   },
   sv: {
     title: "Elpris", imp: "Import", exp: "Export", now: "Aktuellt pris",
@@ -420,6 +432,8 @@ const LABELS = {
     noWater: "Ingen vattenkälla i energiinställningarna.",
     waterNoPrice: "Inget vattenpris angivet. Ange priset i energiinställningarna, under vattenkällan.",
     needPicker: "Lägg till kortet Energidatumväljare på den här instrumentpanelen för att välja period.",
+    comparePrevious: "föregående period",
+    compareYear: "förra året",
   },
   da: {
     title: "Elpris", imp: "Import", exp: "Eksport", now: "Aktuel pris",
@@ -449,6 +463,8 @@ const LABELS = {
     noWater: "Ingen vandkilde i energiindstillingerne.",
     waterNoPrice: "Ingen vandpris angivet. Angiv prisen i energiindstillingerne under vandkilden.",
     needPicker: "Tilføj kortet Energi-datovælger til dette dashboard for at vælge perioden.",
+    comparePrevious: "forrige periode",
+    compareYear: "sidste år",
   },
   nb: {
     title: "Strømpris", imp: "Import", exp: "Eksport", now: "Nåværende pris",
@@ -478,6 +494,8 @@ const LABELS = {
     noWater: "Ingen vannkilde i energiinnstillingene.",
     waterNoPrice: "Ingen vannpris angitt. Angi prisen i energiinnstillingene, under vannkilden.",
     needPicker: "Legg til kortet Energi-datovelger i dette dashbordet for å velge perioden.",
+    comparePrevious: "forrige periode",
+    compareYear: "i fjor",
   },
 };
 
@@ -616,6 +634,7 @@ function graphCard(title, entities, forecasts, collectionKey, L, hours) {
       })),
     }),
     ...(forecasts.length && { [FORECAST_KEY]: forecasts }),
+    ...(OPT.compare && { [COMPARE_KEY]: { previous: L.comparePrevious, year: L.compareYear } }),
     [OVERLAY_KEY]: {
       reference: entities[0]?.entity,
       color: entities[0]?.color,
@@ -935,7 +954,7 @@ function styleSeries(data, style) {
 /** Our own series, so they can be removed before they are added again. */
 function isOwnSeries(s) {
   const id = String(s?.id || "");
-  return id.startsWith(FORECAST_PREFIX) || id.startsWith(OVERLAY_PREFIX);
+  return id.startsWith(FORECAST_PREFIX) || id.startsWith(OVERLAY_PREFIX) || id.startsWith(COMPARE_PREFIX);
 }
 
 /* ------------------------------------------------------------------------ *
@@ -1284,6 +1303,297 @@ function withOverlays(data, ov, style, now = Date.now()) {
   return out;
 }
 
+/* ------------------------------------------------------------------------ *
+ * Compare: the prices of the compare period as a faded line
+ *
+ * With "Compare data" on in the Energy date picker the energy cards show the
+ * previous period (or the same period last year) next to the selected one.
+ * The statistics-graph card does not, and the energy collection only fetches
+ * the energy statistics of that period, not the prices. So we fetch the
+ * prices of the compare period ourselves and shift them onto the selected
+ * period the same way the energy usage graph does (getCompareTransform in
+ * the Home Assistant frontend): whole years, months or days when the period
+ * starts at the start of one, otherwise a fixed offset.
+ * ------------------------------------------------------------------------ */
+
+function sameLocalTime(a, b) {
+  return a.getHours() === b.getHours() && a.getMinutes() === b.getMinutes() &&
+    a.getSeconds() === b.getSeconds() && a.getMilliseconds() === b.getMilliseconds();
+}
+
+function addDays(ts, n) {
+  const d = new Date(ts);
+  d.setDate(d.getDate() + n);
+  return d.getTime();
+}
+
+/** Like date-fns addMonths: the 31st becomes the last day of a shorter month. */
+function addMonths(ts, n) {
+  const d = new Date(ts);
+  const day = d.getDate();
+  d.setDate(1);
+  d.setMonth(d.getMonth() + n);
+  d.setDate(Math.min(day, new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate()));
+  return d.getTime();
+}
+
+/** Whole units from b to a (like date-fns differenceInDays / differenceInMonths). */
+function wholeUnits(a, b, rough, add) {
+  let n = rough;
+  if (n > 0 && add(b, n) > a) n--;
+  else if (n < 0 && add(b, n) < a) n++;
+  return n;
+}
+
+function differenceInDays(a, b) {
+  const da = new Date(a);
+  const db = new Date(b);
+  const days = Math.round(
+    (Date.UTC(da.getFullYear(), da.getMonth(), da.getDate()) -
+      Date.UTC(db.getFullYear(), db.getMonth(), db.getDate())) / DAY
+  );
+  return wholeUnits(a, b, days, addDays);
+}
+
+function differenceInMonths(a, b) {
+  const da = new Date(a);
+  const db = new Date(b);
+  const months = (da.getFullYear() - db.getFullYear()) * 12 + da.getMonth() - db.getMonth();
+  return wholeUnits(a, b, months, addMonths);
+}
+
+function isStartOf(ts, unit) {
+  const d = new Date(ts);
+  if (!sameLocalTime(d, new Date(2000, 0, 1))) return false; // not at midnight
+  if (unit === "day") return true;
+  return d.getDate() === 1 && (unit === "month" || d.getMonth() === 0);
+}
+
+/** Maps a time in the compare period onto the selected period. */
+function compareTransform(start, compareStart) {
+  if (compareStart == null) return (ts) => ts;
+  const dayDiff = differenceInDays(start, compareStart);
+  const monthDiff = differenceInMonths(start, compareStart);
+  const yearDiff = Math.trunc(monthDiff / 12);
+  // Shifting by months clamps the 31st to a shorter month; fall back to a
+  // day shift so every compare point keeps its own place.
+  const byMonths = (months) => (ts) => {
+    const shifted = addMonths(ts, months);
+    return new Date(shifted).getDate() === new Date(ts).getDate() ? shifted : addDays(ts, dayDiff);
+  };
+  if (yearDiff !== 0 && isStartOf(start, "year")) return byMonths(yearDiff * 12);
+  if (monthDiff !== 0 && isStartOf(start, "month")) return byMonths(monthDiff);
+  if (dayDiff !== 0 && isStartOf(start, "day")) return (ts) => addDays(ts, dayDiff);
+  const offset = start - compareStart;
+  return (ts) => ts + offset;
+}
+
+/** The compare period of the energy collection data, or null when off. */
+function compareRange(data) {
+  if (!data?.start || !data?.startCompare) return null;
+  return {
+    start: data.start.getTime(),
+    end: data.end ? data.end.getTime() : null,
+    compareStart: data.startCompare.getTime(),
+    compareEnd: data.endCompare ? data.endCompare.getTime() : null,
+    mode: data.compareMode || "previous",
+  };
+}
+
+function compareKey(range, period) {
+  return range ? `${range.compareStart}-${range.compareEnd}-${range.start}-${period}` : "";
+}
+
+/** Statistic ids of the measured lines of the chart ("<id>-mean"). */
+function compareIds(data) {
+  return (Array.isArray(data) ? data : [])
+    .filter((s) => s?.type === "line" && !isOwnSeries(s) && String(s.id || "").endsWith("-mean"))
+    .map((s) => String(s.id).slice(0, -5));
+}
+
+/**
+ * Mean prices of the compare period. 5-minute statistics are only kept for
+ * the recorder history, so an older compare period falls back to hours.
+ */
+async function fetchCompare(callWS, ids, range, period) {
+  const ask = (p) =>
+    callWS({
+      type: "recorder/statistics_during_period",
+      start_time: new Date(range.compareStart).toISOString(),
+      ...(range.compareEnd != null && { end_time: new Date(range.compareEnd).toISOString() }),
+      statistic_ids: ids,
+      period: p,
+      types: ["mean"],
+    });
+  let res = await ask(period);
+  if (period === "5minute" && !ids.some((id) => res?.[id]?.length)) res = await ask("hour");
+  return res || {};
+}
+
+/**
+ * Faded line series with the compare prices, shifted onto the selected
+ * period. Each point keeps its real time in epgTimes for the tooltip.
+ */
+function withCompare(data, stats, range, labels, style) {
+  if (!Array.isArray(data) || !range || !stats) return data;
+  const shift = compareTransform(range.start, range.compareStart);
+  const label = range.mode === "yoy" ? labels?.year : labels?.previous;
+  const out = [...data];
+  for (const ref of data) {
+    if (ref?.type !== "line" || isOwnSeries(ref) || !String(ref.id || "").endsWith("-mean")) continue;
+    const id = String(ref.id).slice(0, -5);
+    const times = [];
+    const points = [];
+    for (const row of stats[id] || []) {
+      const t = toMs(row?.start);
+      if (!Number.isFinite(t) || typeof row.mean !== "number" || !Number.isFinite(row.mean)) continue;
+      points.push([shift(t), row.mean]);
+      times.push(t);
+    }
+    if (!points.length) continue;
+    const color = ref.lineStyle?.color || ref.itemStyle?.color || ref.color;
+    out.push({
+      id: `${COMPARE_PREFIX}${id}`,
+      name: label ? `${ref.name} (${label})` : ref.name,
+      type: "line",
+      data: points,
+      color,
+      itemStyle: { color },
+      lineStyle: { width: 1.5, opacity: 0.45, ...(color && { color }) },
+      symbol: "none",
+      z: 1,
+      ...lineShape(style),
+      ...(ref.xAxisIndex != null && { xAxisIndex: ref.xAxisIndex }),
+      cursor: "default",
+      epgReference: id,
+      epgTimes: { shifted: points.map(([t]) => t), real: times },
+    });
+  }
+  return out;
+}
+
+/** Real time of a point of a compare series, from its (shifted) x value. */
+function compareRealTime(series, x) {
+  const { shifted = [], real = [] } = series?.epgTimes || {};
+  // The chart may thin out the points, so take the nearest earlier point.
+  let lo = 0;
+  let hi = shifted.length - 1;
+  if (hi < 0 || x < shifted[0]) return null;
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >> 1;
+    if (shifted[mid] <= x) lo = mid;
+    else hi = mid - 1;
+  }
+  return real[lo] + (x - shifted[lo]);
+}
+
+function formatCompareTime(ts, language, withTime) {
+  try {
+    return new Intl.DateTimeFormat(language, {
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+      ...(withTime && { hour: "2-digit", minute: "2-digit" }),
+    }).format(new Date(ts));
+  } catch (e) {
+    return new Date(ts).toLocaleString();
+  }
+}
+
+const COMPARE_STATE = new WeakMap(); // card -> { unsub, range, key, stats, pending, chart }
+
+/**
+ * Resolution the card asks the recorder for: the card's _period getter, else
+ * its config, else what the card picks for "auto" (getSuggestedPeriod).
+ */
+function cardPeriod(card, range) {
+  const period = card?._period || cardConfig(card)?.period;
+  if (period && period !== "auto") return period;
+  const end = range?.end ?? Date.now();
+  const days = range ? differenceInDays(end, range.start) : 0;
+  const lastDay = new Date(end);
+  const wholeMonths = isStartOf(range?.start, "month") &&
+    new Date(lastDay.getFullYear(), lastDay.getMonth(), lastDay.getDate() + 1).getDate() === 1;
+  return wholeMonths && days > 35 ? "month" : days > 2 ? "day" : "hour";
+}
+
+/** Follow the compare setting of the Energy date picker for one card. */
+function handleCompare(card) {
+  const cfg = cardConfig(card);
+  if (!cfg?.[COMPARE_KEY] || COMPARE_STATE.has(card) || !card.hass) return;
+  const collection = collectionOf(card.hass, cfg.collection_key);
+  if (!collection?.subscribe) return; // tried again on the next update
+  const state = {};
+  COMPARE_STATE.set(card, state);
+  state.unsub = collection.subscribe((data) => {
+    const range = compareRange(data);
+    const changed = JSON.stringify(range) !== JSON.stringify(state.range);
+    state.range = range;
+    if (changed && state.chart) refreshChart(state.chart);
+  });
+}
+
+function stopCompare(card) {
+  const state = COMPARE_STATE.get(card);
+  if (!state) return;
+  state.unsub?.();
+  COMPARE_STATE.delete(card);
+}
+
+/**
+ * Compare series for a chart that is about to draw. The prices are fetched
+ * once per compare period and resolution; the chart is redrawn when they
+ * arrive.
+ */
+function compareFor(card, chart, data, style) {
+  const state = COMPARE_STATE.get(card);
+  if (!state) return data;
+  state.chart = chart;
+  const range = state.range;
+  if (!range) return data;
+  const period = cardPeriod(card, range);
+  const key = compareKey(range, period);
+  if (state.key === key && state.stats) {
+    return withCompare(data, state.stats, range, cardConfig(card)?.[COMPARE_KEY], style);
+  }
+  if (state.key !== key) {
+    const ids = compareIds(data);
+    const hass = chart.hass || card.hass;
+    const callWS = hass?.callWS ? (msg) => hass.callWS(msg) : card._api?.callWS;
+    // No measured lines yet (the card is still loading): try on the next draw.
+    if (!ids.length || !callWS) return data;
+    state.key = key;
+    state.stats = null;
+    fetchCompare(callWS, ids, range, period)
+      .then((stats) => {
+        if (state.key !== key) return; // another period was selected meanwhile
+        state.stats = stats;
+        refreshChart(chart);
+      })
+      .catch((e) => {
+        if (state.key === key) state.key = null; // try again on the next draw
+        console.warn(TAG, "could not fetch the prices of the compare period", e);
+      });
+  }
+  return data;
+}
+
+/** Name of a compare point in the tooltip, with the day (and time) it is from. */
+function withCompareTime(chart, p) {
+  if (!String(p?.seriesId || "").startsWith(COMPARE_PREFIX)) return p;
+  try {
+    const series = (chart.data || []).find((s) => s?.id === p.seriesId);
+    const x = toMs(Array.isArray(p.value) ? p.value[0] : p.data?.[0]);
+    const real = compareRealTime(series, x);
+    if (real == null) return p;
+    const step = medianStep(seriesPoints(series));
+    const when = formatCompareTime(real, lang(chart.hass || hostCard(chart)?.hass), step < DAY);
+    return { ...p, seriesName: `${p.seriesName} · ${when}` };
+  } catch (e) {
+    return p;
+  }
+}
+
 /** Keep the marker series out of the chart's tooltip. */
 function wrapTooltip(chart) {
   const opts = chart.options;
@@ -1292,7 +1602,9 @@ function wrapTooltip(chart) {
   const original = tooltip.formatter;
   const formatter = function (items, ...rest) {
     const shown = Array.isArray(items)
-      ? items.filter((p) => !String(p?.seriesId || "").startsWith(OVERLAY_PREFIX))
+      ? items
+          .filter((p) => !String(p?.seriesId || "").startsWith(OVERLAY_PREFIX))
+          .map((p) => withCompareTime(chart, p))
       : items;
     return original.call(this, shown, ...rest);
   };
@@ -1325,6 +1637,7 @@ function patchChartBase(cls) {
             data = withForecast(data, cfg[FORECAST_KEY], hass, style, () => refreshChart(this));
           }
           if (cfg?.[OVERLAY_KEY]) data = withOverlays(data, cfg[OVERLAY_KEY], style);
+          if (cfg?.[COMPARE_KEY]) data = compareFor(card, this, data, style);
           this.data = data;
         }
       }
@@ -1712,6 +2025,11 @@ function patchStatisticsCard(cls) {
   proto.updated = function (changed) {
     const result = original?.call(this, changed);
     decorateHeader(this);
+    try {
+      handleCompare(this);
+    } catch (e) {
+      console.warn(TAG, "could not follow the compare setting", e);
+    }
     if (!fetchPatched) {
       try {
         handleFinePeriod(this);
@@ -1726,6 +2044,7 @@ function patchStatisticsCard(cls) {
   };
   const originalDisconnected = proto.disconnectedCallback;
   proto.disconnectedCallback = function () {
+    stopCompare(this);
     const state = FINE_STATE.get(this);
     if (state) {
       state.unsub?.();
@@ -3194,6 +3513,16 @@ export {
   waterSources,
   collectionProp,
   collectionOf,
+  compareFor,
+  compareIds,
+  compareRange,
+  compareRealTime,
+  compareTransform,
+  cardPeriod,
+  fetchCompare,
+  handleCompare,
+  stopCompare,
+  withCompare,
   patchFetch,
   expensiveHourSet,
   finePeriod,

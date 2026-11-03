@@ -24,14 +24,16 @@
               "line_style": "Linjestil",
               "views": "Visa prisgrafen på flikar",
               "show_export": "Visa exportpris",
-              "minmax": "Visa min/max per period"
+              "minmax": "Visa min/max per period",
+              "show_compare": "Visa jämförelseperioden"
             },
             "data_description": {
               "period": "Auto (fin) visar varje prissteg (5-minutersdata, så kvartspriser ändras exakt vid :00, :15, :30 och :45) för perioder upp till en vecka inom recorder-historiken, och timmes- eller dygnsmedelvärden för längre perioder. Auto använder timmedelvärden för ett dygn. 5-minutersdata sparas så länge som recordern sparar historik (purge_keep_days, standard 10 dagar).",
               "line_style": "Rak förbinder punkterna direkt. Trappsteg visar det exakta priset per period. Mjuk ritar en rundad kurva.",
               "views": "Flikar i Energi-instrumentpanelen där elprisgrafen visas.",
               "show_export": "Lägger till en andra linje när exportpriset är en annan sensor än importpriset.",
-              "minmax": "Ritar även det lägsta och högsta priset inom varje period."
+              "minmax": "Ritar även det lägsta och högsta priset inom varje period.",
+              "show_compare": "När Jämför data är på i energidatumväljaren ritas även priserna för föregående period (eller samma period förra året) som en blek linje över den valda perioden."
             }
           },
           "markers": {

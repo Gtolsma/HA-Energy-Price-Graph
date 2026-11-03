@@ -53,6 +53,7 @@ from .const import (
     CONF_PRICE_COLOR_THRESHOLD,
     CONF_SHOW_AVERAGE,
     CONF_SHOW_AVERAGE_LINE,
+    CONF_SHOW_COMPARE,
     CONF_SHOW_CURRENT,
     CONF_SHOW_EXPORT,
     CONF_SHOW_GAS,
@@ -116,6 +117,7 @@ OPTIONS_SCHEMA = vol.Schema(
                     vol.Required(CONF_VIEWS): _select(VIEWS, CONF_VIEWS, multiple=True),
                     vol.Required(CONF_SHOW_EXPORT): BooleanSelector(),
                     vol.Required(CONF_MINMAX): BooleanSelector(),
+                    vol.Required(CONF_SHOW_COMPARE): BooleanSelector(),
                 }
             ),
             {"collapsed": False},

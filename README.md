@@ -23,7 +23,7 @@ Show your **dynamic electricity and gas prices** directly in the **built-in Ener
 - 💧 **Water costs card** on the Water tab: consumption, price and costs compared with the previous period
 - 🧮 **Sensors** with your average prices and the result compared with the market, for today and this month
 - 🧩 **All cards also on your own dashboards**, from the *Add card* dialog
-- 📅 Follows the Energy dashboard **date picker** (today, yesterday, last week, …)
+- 📅 Follows the Energy dashboard **date picker** (today, yesterday, last week, …), including **Compare data**: the prices of the previous period or last year as a faded line
 - 🔌 Uses the price sensors you already configured in the **Energy settings** — no extra setup needed
 - ⚙️ Configurable from the UI: resolution, line style, tabs, markers, min/max, title, sensor overrides
 - 🛠️ A repair message when a Home Assistant update breaks the graph or no price sensor is set, and diagnostics for bug reports
@@ -44,6 +44,7 @@ The screenshot above shows a sunny Sunday afternoon at 15:40:
 | 🟩 Green band | The cheapest hours of the day (here 3) |
 | 🟧 Orange band | The most expensive hours of the day (here 3) |
 | 🟥 Red area + zero line | Negative import prices |
+| Faded line | Prices of the compare period, when *Compare data* is on in the date picker |
 | Chips in the header | Current import and export price: 🟢 favourable, 🟠 around average, 🔴 unfavourable compared to today's average |
 
 ### 🔥 Gas price
@@ -127,6 +128,7 @@ Go to **Settings → Devices & services → Energy Price Graph → Configure**. 
 | Show the price graph on tabs | Electricity, Summary | Energy dashboard tabs where the electricity price graph is added. The Summary tab only exists when you track more than one energy type or have a grid power sensor. |
 | Show export price | On | Adds a second line when the export price is a different sensor than the import price. |
 | Show min/max per period | Off | Also draws the lowest and highest price within each period. |
+| Show the compare period | On | When *Compare data* is on in the Energy date picker, also draws the prices of the previous period (or the same period last year) as a faded line, shifted onto the selected period. |
 
 ### 📍 Markers in the graph
 

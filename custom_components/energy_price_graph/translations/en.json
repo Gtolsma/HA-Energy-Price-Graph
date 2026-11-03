@@ -24,14 +24,16 @@
               "line_style": "Line style",
               "views": "Show the price graph on tabs",
               "show_export": "Show export price",
-              "minmax": "Show min/max per period"
+              "minmax": "Show min/max per period",
+              "show_compare": "Show the compare period"
             },
             "data_description": {
               "period": "Auto (fine) shows every price step (5-minute data, so quarter-hour prices change exactly at :00, :15, :30 and :45) for periods up to a week within the recorder history, and hourly or daily averages for longer periods. Auto uses hourly averages for a day. 5-minute data is kept as long as your recorder keeps history (purge_keep_days, default 10 days).",
               "line_style": "Straight connects the points directly. Stepped shows the exact price per period. Smooth draws a rounded curve.",
               "views": "Tabs of the Energy dashboard where the electricity price graph is shown.",
               "show_export": "Adds a second line when the export price is a different sensor than the import price.",
-              "minmax": "Also draws the lowest and highest price within each period."
+              "minmax": "Also draws the lowest and highest price within each period.",
+              "show_compare": "When Compare data is on in the Energy date picker, also draws the prices of the previous period (or the same period last year) as a faded line, shifted onto the selected period."
             }
           },
           "markers": {

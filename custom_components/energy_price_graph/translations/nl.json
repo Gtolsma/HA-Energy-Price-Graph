@@ -24,14 +24,16 @@
               "line_style": "Lijnstijl",
               "views": "Prijsgrafiek tonen op tabbladen",
               "show_export": "Terugleverprijs tonen",
-              "minmax": "Min/max per periode tonen"
+              "minmax": "Min/max per periode tonen",
+              "show_compare": "Vergelijkingsperiode tonen"
             },
             "data_description": {
               "period": "Automatisch (fijn) toont elke prijsstap (5-minutengegevens, dus kwartierprijzen wisselen precies om :00, :15, :30 en :45) voor periodes tot een week binnen de recorderhistorie, en uur- of daggemiddelden voor langere periodes. Automatisch gebruikt uurgemiddelden voor een dag. 5-minutengegevens worden bewaard zolang je recorder historie bewaart (purge_keep_days, standaard 10 dagen).",
               "line_style": "Recht verbindt de punten direct. Trapsgewijs toont de exacte prijs per periode. Vloeiend tekent een afgeronde lijn.",
               "views": "Tabbladen van het Energie-dashboard waarop de stroomprijsgrafiek verschijnt.",
               "show_export": "Voegt een tweede lijn toe als de terugleverprijs een andere sensor is dan de inkoopprijs.",
-              "minmax": "Tekent ook de laagste en hoogste prijs binnen elke periode."
+              "minmax": "Tekent ook de laagste en hoogste prijs binnen elke periode.",
+              "show_compare": "Als Gegevens vergelijken aan staat in de Energie-datumkiezer, tekent ook de prijzen van de vorige periode (of dezelfde periode vorig jaar) als vervaagde lijn over de gekozen periode."
             }
           },
           "markers": {
