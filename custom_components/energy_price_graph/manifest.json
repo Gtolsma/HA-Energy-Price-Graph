@@ -19,5 +19,5 @@
   "issue_tracker": "https://github.com/Gtolsma/HA-Energy-Price-Graph/issues",
   "requirements": [],
   "single_config_entry": true,
-  "version": "1.9.0-beta.1"
+  "version": "1.9.0b1"
 }
