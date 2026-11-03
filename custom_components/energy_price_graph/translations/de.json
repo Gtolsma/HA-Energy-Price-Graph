@@ -24,14 +24,16 @@
               "line_style": "Linienstil",
               "views": "Preisdiagramm auf Tabs anzeigen",
               "show_export": "Einspeisepreis anzeigen",
-              "minmax": "Min/Max pro Zeitraum anzeigen"
+              "minmax": "Min/Max pro Zeitraum anzeigen",
+              "show_compare": "Vergleichszeitraum anzeigen"
             },
             "data_description": {
               "period": "Automatisch (fein) zeigt jeden Preisschritt (5-Minuten-Daten, Viertelstundenpreise wechseln also genau um :00, :15, :30 und :45) für Zeiträume bis zu einer Woche innerhalb des Recorder-Verlaufs, und Stunden- oder Tagesmittel für längere Zeiträume. Automatisch verwendet Stundenmittel für einen Tag. 5-Minuten-Daten werden so lange aufbewahrt wie der Recorder-Verlauf (purge_keep_days, Standard 10 Tage).",
               "line_style": "Gerade verbindet die Punkte direkt. Stufen zeigt den exakten Preis pro Zeitraum. Glatt zeichnet eine abgerundete Kurve.",
               "views": "Tabs des Energie-Dashboards, auf denen das Strompreisdiagramm angezeigt wird.",
               "show_export": "Fügt eine zweite Linie hinzu, wenn der Einspeisepreis ein anderer Sensor als der Bezugspreis ist.",
-              "minmax": "Zeichnet auch den niedrigsten und höchsten Preis innerhalb jedes Zeitraums."
+              "minmax": "Zeichnet auch den niedrigsten und höchsten Preis innerhalb jedes Zeitraums.",
+              "show_compare": "Wenn Daten vergleichen in der Energie-Datumsauswahl aktiv ist, werden auch die Preise des vorherigen Zeitraums (oder desselben Zeitraums im Vorjahr) als blasse Linie über dem gewählten Zeitraum gezeichnet."
             }
           },
           "markers": {

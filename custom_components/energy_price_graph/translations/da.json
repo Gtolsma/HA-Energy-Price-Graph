@@ -24,14 +24,16 @@
               "line_style": "Linjestil",
               "views": "Vis prisgrafen på faner",
               "show_export": "Vis eksportpris",
-              "minmax": "Vis min/maks pr. periode"
+              "minmax": "Vis min/maks pr. periode",
+              "show_compare": "Vis sammenligningsperioden"
             },
             "data_description": {
               "period": "Auto (fin) viser hvert pristrin (5-minutters data, så kvartersprise skifter præcis kl. :00, :15, :30 og :45) for perioder op til en uge inden for recorder-historikken, og time- eller døgngennemsnit for længere perioder. Auto bruger timegennemsnit for et døgn. 5-minutters data gemmes, så længe recorderen gemmer historik (purge_keep_days, standard 10 dage).",
               "line_style": "Lige forbinder punkterne direkte. Trin viser den præcise pris pr. periode. Blød tegner en afrundet kurve.",
               "views": "Faner i Energi-dashboardet, hvor elprisgrafen vises.",
               "show_export": "Tilføjer en ekstra linje, når eksportprisen er en anden sensor end importprisen.",
-              "minmax": "Tegner også den laveste og højeste pris inden for hver periode."
+              "minmax": "Tegner også den laveste og højeste pris inden for hver periode.",
+              "show_compare": "Når Sammenlign data er slået til i energi-datovælgeren, tegnes også priserne for den forrige periode (eller samme periode sidste år) som en bleg linje over den valgte periode."
             }
           },
           "markers": {

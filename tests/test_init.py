@@ -78,6 +78,7 @@ async def test_setup_registers_module(
     assert options["show_current"] is True
     assert options["show_average"] is True
     assert options["show_now_line"] is True
+    assert options["show_compare"] is True
     assert options["cheapest_hours"] == 0
     assert options["expensive_hours"] == 0
     assert options["price_color_threshold"] == 10
@@ -138,6 +139,7 @@ async def test_options_flow_updates_options(
             views=["electricity"],
             show_export=False,
             minmax=True,
+            show_compare=False,
             show_now_line=False,
             show_average_line=True,
             cheapest_hours=3,
@@ -178,6 +180,7 @@ async def test_options_flow_updates_options(
     assert options["views"] == ["electricity"]
     assert options["show_export"] is False
     assert options["minmax"] is True
+    assert options["show_compare"] is False
     assert options["title"] == "Prijs"
     assert options["import_entity"] == "sensor.price"
     assert options["show_now_line"] is False

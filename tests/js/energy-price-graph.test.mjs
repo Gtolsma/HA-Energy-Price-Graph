@@ -7,7 +7,17 @@ import {
   cheapestHourSet,
   collectionOf,
   collectionProp,
+  cardPeriod,
+  compareFor,
+  compareIds,
+  compareRange,
+  compareRealTime,
+  compareTransform,
   costPerDay,
+  fetchCompare,
+  handleCompare,
+  stopCompare,
+  withCompare,
   dayHours,
   expensiveHourSet,
   finePeriod,
@@ -680,5 +690,226 @@ describe("water", () => {
     assert.equal(monthOutlook(21, start(2026, 9, 5), null, noon), null);
     assert.equal(monthOutlook(21, start(2026, 8), start(2026, 9) - 1, noon), null);
     assert.equal(monthOutlook(1, start(2026, 9), null, start(2026, 9) + 5 * HOUR), null);
+  });
+});
+
+describe("compareTransform", () => {
+  const local = (y, m, d, h = 0) => new Date(y, m - 1, d, h).getTime();
+
+  it("shifts by whole days when a day is compared with the day before", () => {
+    const shift = compareTransform(local(2026, 11, 3), local(2026, 11, 2));
+    assert.equal(shift(local(2026, 11, 2, 14)), local(2026, 11, 3, 14));
+  });
+
+  it("keeps the local time across a DST change", () => {
+    // Sunday 25 October 2026 has 25 hours in Europe/Amsterdam.
+    const shift = compareTransform(local(2026, 10, 26), local(2026, 10, 25));
+    assert.equal(shift(local(2026, 10, 25, 18)), local(2026, 10, 26, 18));
+  });
+
+  it("shifts by whole weeks", () => {
+    const shift = compareTransform(local(2026, 11, 2), local(2026, 10, 26));
+    assert.equal(shift(local(2026, 10, 27, 8)), local(2026, 11, 3, 8));
+  });
+
+  it("shifts by months, and by days where the month is shorter", () => {
+    // November compared with October: 31 October has no counterpart.
+    const shift = compareTransform(local(2026, 11, 1), local(2026, 10, 1));
+    assert.equal(shift(local(2026, 10, 15, 9)), local(2026, 11, 15, 9));
+    assert.equal(shift(local(2026, 10, 31, 9)), local(2026, 12, 1, 9));
+  });
+
+  it("shifts by years for the same period last year", () => {
+    const shift = compareTransform(local(2026, 1, 1), local(2025, 1, 1));
+    assert.equal(shift(local(2025, 3, 10, 12)), local(2026, 3, 10, 12));
+  });
+
+  it("uses a fixed offset when the period does not start at midnight", () => {
+    const shift = compareTransform(local(2026, 11, 3, 6), local(2026, 11, 2, 18));
+    assert.equal(shift(local(2026, 11, 2, 20)), local(2026, 11, 3, 8));
+  });
+
+  it("does nothing without a compare start", () => {
+    assert.equal(compareTransform(T0, null)(T0 + HOUR), T0 + HOUR);
+  });
+});
+
+describe("compareRange", () => {
+  it("is null when compare is off", () => {
+    assert.equal(compareRange({ start: new Date(T0) }), null);
+    assert.equal(compareRange(undefined), null);
+  });
+
+  it("takes the compare period and mode", () => {
+    const r = compareRange({
+      start: new Date(T0),
+      startCompare: new Date(T0 - DAY),
+      endCompare: new Date(T0 - 1),
+      compareMode: "yoy",
+    });
+    assert.deepEqual(r, { start: T0, end: null, compareStart: T0 - DAY, compareEnd: T0 - 1, mode: "yoy" });
+  });
+});
+
+const mean = (id, color = "#ff0000") => ({ id: `${id}-mean`, name: "Import", type: "line", color, data: [] });
+const range = { start: T0, compareStart: T0 - DAY, compareEnd: T0 - 1, mode: "previous" };
+const labels = { previous: "previous period", year: "last year" };
+
+describe("withCompare", () => {
+  const stats = { "sensor.p": [{ start: T0 - DAY, mean: 0.2 }, { start: T0 - DAY + HOUR, mean: 0.3 }] };
+
+  it("adds a faded line shifted onto the selected period", () => {
+    const out = withCompare([mean("sensor.p")], stats, range, labels, "straight");
+    assert.equal(out.length, 2);
+    const c = out[1];
+    assert.equal(c.id, "epg-compare-sensor.p");
+    assert.equal(c.name, "Import (previous period)");
+    assert.deepEqual(c.data, [[T0, 0.2], [T0 + HOUR, 0.3]]);
+    assert.equal(c.color, "#ff0000");
+    assert.ok(c.lineStyle.opacity < 1);
+    assert.deepEqual(c.epgTimes.real, [T0 - DAY, T0 - DAY + HOUR]);
+  });
+
+  it("is labelled last year in year-over-year mode", () => {
+    const out = withCompare([mean("sensor.p")], stats, { ...range, mode: "yoy" }, labels, "straight");
+    assert.equal(out[1].name, "Import (last year)");
+  });
+
+  it("skips own series, min/max and statistics without data", () => {
+    const data = [
+      mean("sensor.p"),
+      { id: "sensor.p-max", type: "line", data: [] },
+      { id: "epg-forecast-0", type: "line", data: [] },
+      mean("sensor.q"),
+    ];
+    const out = withCompare(data, stats, range, labels, "straight");
+    assert.deepEqual(out.map((s) => s.id).slice(4), ["epg-compare-sensor.p"]);
+  });
+
+  it("leaves the data alone without a compare period", () => {
+    const data = [mean("sensor.p")];
+    assert.equal(withCompare(data, stats, null, labels, "straight"), data);
+  });
+});
+
+describe("compareIds", () => {
+  it("lists the measured lines only", () => {
+    const data = [mean("sensor.p"), { id: "sensor.p-min", type: "line" }, { id: "epg-compare-sensor.p-mean", type: "line" }];
+    assert.deepEqual(compareIds(data), ["sensor.p"]);
+  });
+});
+
+describe("compareRealTime", () => {
+  const series = { epgTimes: { shifted: [T0, T0 + HOUR], real: [T0 - DAY, T0 - DAY + HOUR] } };
+
+  it("finds the real time of a shifted point", () => {
+    assert.equal(compareRealTime(series, T0 + HOUR), T0 - DAY + HOUR);
+  });
+
+  it("uses the nearest earlier point for thinned-out data", () => {
+    assert.equal(compareRealTime(series, T0 + 30 * 60000), T0 - DAY + 30 * 60000);
+  });
+
+  it("is null before the first point", () => {
+    assert.equal(compareRealTime(series, T0 - 1), null);
+    assert.equal(compareRealTime({}, T0), null);
+  });
+});
+
+describe("fetchCompare", () => {
+  it("asks the recorder for the compare period", async () => {
+    const calls = [];
+    const callWS = async (msg) => (calls.push(msg), { "sensor.p": [{ start: T0, mean: 1 }] });
+    const res = await fetchCompare(callWS, ["sensor.p"], range, "hour");
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].type, "recorder/statistics_during_period");
+    assert.equal(calls[0].start_time, new Date(T0 - DAY).toISOString());
+    assert.equal(calls[0].end_time, new Date(T0 - 1).toISOString());
+    assert.deepEqual(calls[0].types, ["mean"]);
+    assert.equal(res["sensor.p"].length, 1);
+  });
+
+  it("falls back to hours when there are no 5-minute statistics", async () => {
+    const periods = [];
+    const callWS = async (msg) => (periods.push(msg.period), msg.period === "hour" ? { "sensor.p": [{}] } : {});
+    await fetchCompare(callWS, ["sensor.p"], range, "5minute");
+    assert.deepEqual(periods, ["5minute", "hour"]);
+  });
+});
+
+describe("compare in a card", () => {
+  const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+  function setup() {
+    let subscriber;
+    const unsubscribed = [];
+    const collection = {
+      subscribe: (fn) => ((subscriber = fn), () => unsubscribed.push(true)),
+    };
+    const calls = [];
+    const hass = {
+      panelUrl: "energy",
+      connection: { _energy_dashboard: collection },
+      callWS: async (msg) => (calls.push(msg), { "sensor.p": [{ start: T0 - DAY, mean: 0.25 }] }),
+    };
+    const card = {
+      hass,
+      _period: "hour",
+      _config: { collection_key: "energy_dashboard", energy_price_graph_compare: labels },
+    };
+    const chart = { isConnected: true, data: [mean("sensor.p")], hass };
+    return { card, chart, calls, unsubscribed, push: (d) => subscriber(d) };
+  }
+
+  it("fetches the compare prices once and redraws the chart", async () => {
+    const { card, chart, calls, push } = setup();
+    handleCompare(card);
+    push({ start: new Date(T0), startCompare: new Date(T0 - DAY), endCompare: new Date(T0 - 1) });
+    // Nothing yet: the prices are being fetched.
+    assert.equal(compareFor(card, chart, chart.data, "straight").length, 1);
+    await tick();
+    assert.equal(calls.length, 1);
+    const out = compareFor(card, chart, [mean("sensor.p")], "straight");
+    assert.equal(out.length, 2);
+    assert.deepEqual(out[1].data, [[T0, 0.25]]);
+    compareFor(card, chart, [mean("sensor.p")], "straight");
+    assert.equal(calls.length, 1); // cached
+    stopCompare(card);
+  });
+
+  it("removes the line when compare is turned off", async () => {
+    const { card, chart, push, unsubscribed } = setup();
+    handleCompare(card);
+    push({ start: new Date(T0), startCompare: new Date(T0 - DAY), endCompare: new Date(T0 - 1) });
+    compareFor(card, chart, chart.data, "straight");
+    await tick();
+    push({ start: new Date(T0) });
+    assert.equal(compareFor(card, chart, [mean("sensor.p")], "straight").length, 1);
+    stopCompare(card);
+    assert.equal(unsubscribed.length, 1);
+  });
+
+  it("does nothing when the option is off", () => {
+    const { card, chart, push } = setup();
+    delete card._config.energy_price_graph_compare;
+    handleCompare(card);
+    assert.throws(() => push({}));
+    assert.equal(compareFor(card, chart, chart.data, "straight"), chart.data);
+  });
+});
+
+describe("cardPeriod", () => {
+  const local = (y, m, d, h = 0) => new Date(y, m - 1, d, h).getTime();
+  const at = (start, end) => ({ start, end, compareStart: start - DAY, compareEnd: start - 1 });
+
+  it("uses the resolution of the card", () => {
+    assert.equal(cardPeriod({ _period: "5minute" }, at(T0, T0 + DAY)), "5minute");
+    assert.equal(cardPeriod({ _config: { period: "day" } }, at(T0, T0 + DAY)), "day");
+  });
+
+  it("picks what the card picks for auto on older frontends", () => {
+    assert.equal(cardPeriod({}, at(local(2026, 11, 3), local(2026, 11, 3, 23))), "hour");
+    assert.equal(cardPeriod({}, at(local(2026, 10, 26), local(2026, 11, 1, 23))), "day");
+    assert.equal(cardPeriod({ _config: { period: "auto" } }, at(local(2026, 1, 1), local(2026, 12, 31, 23))), "month");
   });
 });

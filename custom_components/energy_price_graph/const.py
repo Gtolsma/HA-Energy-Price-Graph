@@ -15,6 +15,7 @@ CONF_VIEWS = "views"
 CONF_TITLE = "title"
 CONF_SHOW_EXPORT = "show_export"
 CONF_MINMAX = "minmax"
+CONF_SHOW_COMPARE = "show_compare"
 CONF_LINE_STYLE = "line_style"
 CONF_SHOW_NOW_LINE = "show_now_line"
 CONF_SHOW_AVERAGE_LINE = "show_average_line"
@@ -64,6 +65,7 @@ SECTIONS: dict[str, list[str]] = {
         CONF_VIEWS,
         CONF_SHOW_EXPORT,
         CONF_MINMAX,
+        CONF_SHOW_COMPARE,
     ],
     SECTION_MARKERS: [
         CONF_SHOW_NOW_LINE,
@@ -121,6 +123,7 @@ DEFAULT_OPTIONS: dict = {
     CONF_VIEWS: ["electricity", "overview"],
     CONF_SHOW_EXPORT: True,
     CONF_MINMAX: False,
+    CONF_SHOW_COMPARE: True,
     CONF_LINE_STYLE: "straight",
     CONF_SHOW_NOW_LINE: True,
     CONF_SHOW_AVERAGE_LINE: False,
